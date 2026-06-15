@@ -9,6 +9,7 @@ import {
   evaluate,
 } from "@/lib/simulation";
 import { MimsaLogo } from "./MimsaLogo";
+import { KpiStrip } from "./KpiStrip";
 import { StationCard } from "./StationCard";
 import { PlantLayout } from "./PlantLayout";
 import { ResultsPanel } from "./ResultsPanel";
@@ -103,16 +104,11 @@ export function Simulator() {
             LÍNEA DE MARCOS METÁLICOS · ANÁLISIS DE CUELLOS DE BOTELLA
           </p>
         </div>
-        <div className="ml-auto hidden text-right sm:block">
-          <div className="text-[10px] uppercase tracking-wide text-mimsa-grayLight">
-            Capacidad actual
-          </div>
-          <div className="font-mono text-sm font-semibold text-mimsa-green">
-            {Math.round(result.effectiveCapacity).toLocaleString("es-MX")}{" "}
-            marcos/turno
-          </div>
-        </div>
       </header>
+
+      {/* Cintilla de KPIs principales */}
+      <KpiStrip stations={stations} params={params} result={result} />
+
 
       {/* Presets */}
       <section className="mb-4">
