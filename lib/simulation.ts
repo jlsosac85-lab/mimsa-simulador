@@ -217,3 +217,28 @@ export const PIECE_COLORS: Record<PieceType, string> = {
   bisagra: "#1C1C1A",
   embutido: "#888780",
 };
+
+// ============================================================
+// Dotacion de personal: detectar sobre-dotacion por estacion
+// ============================================================
+// Productividad estandar (marcos por persona-hora) tomada de la config base.
+// Representa cuanto produce UNA persona en cada estacion. Con esto podemos
+// estimar cuantas personas requiere la estacion para sostener su ritmo y
+// detectar exceso de personal (mas personas de las que el ritmo justifica).
+const STD_PRODUCTIVITY: Record<string, number> = (() => {
+  const map: Record<string, number> = {};
+  defaultStations().forEach((s) => {
+    map[s.id] = s.people > 0 ? s.ratePerHour / s.people : s.ratePerHour;
+  });
+  return map;
+})();
+
+// Personas necesarias para sostener el ritmo actual de la estacion.
+// No depende de cuantas personas asigne el usuario, sino del ritmo (ratePerHour)
+// y la productividad estandar por persona. Asi, asignar 15 personas a una
+// estacion que requiere 2 se reporta como exceso de 13.
+export function requiredPeople(s: Station): number {
+  const prod = STD_PRODUCTIVITY[s.id] ?? s.ratePerHour;
+  if (prod <= 0) return 1;
+  return Math.max(1, Math.round(s.ratePerHour / prod));
+}
