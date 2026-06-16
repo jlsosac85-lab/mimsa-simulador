@@ -11,10 +11,25 @@ html,
 body {
   padding: 0;
   margin: 0;
-  background: #eceae0;
   color: #1c1c1a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fondo: foto aérea de la planta MIMSA (desde mimsamty.com.mx) con un velo
+   claro para darle bastante transparencia y no estorbar la lectura. */
+body {
+  background-color: #eceae0;
+  background-image: linear-gradient(
+      rgba(238, 236, 228, 0.88),
+      rgba(238, 236, 228, 0.92)
+    ),
+    url("https://mimsamty.com.mx/wp-content/uploads/2024/08/IMG_2291-scaled.jpg");
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  min-height: 100vh;
 }
 
 * {
