@@ -5,17 +5,17 @@
 // no multiplican la capacidad.
 //
 // FLUJO (actualizado):
-//   Roladora produce cabezal + larguero-bisagra + larguero-embutido.
-//   - Cabezal:  Roladora -> Pintura -> Embolsado
+//   Roladora produce los dos largueros del marco.
 //   - Bisagra:  Roladora -> Troquel Bisagra -> Pintura -> Remachadora -> Embolsado
 //   - Embutido: Roladora -> Troquel Embutido -> Pintura -> Embolsado
+//   (El cabezal se omite del flujo visual para mantenerlo limpio.)
 //   Es decir: Pintura recibe el 100% de las piezas. Despues de pintar,
 //   solo el larguero-bisagra pasa por Remachadora; el resto queda en
 //   standby hasta que la bisagra termina, y entonces el juego completo
 //   se va a Embolsado.
 // ============================================================
 
-export type PieceType = "cabezal" | "bisagra" | "embutido";
+export type PieceType = "bisagra" | "embutido";
 
 export interface Station {
   id: string;
@@ -120,7 +120,7 @@ export function defaultStations(): Station[] {
       x: 120,
       y: 180,
       fill: "#94C11C",
-      handles: ["cabezal", "bisagra", "embutido"],
+      handles: ["bisagra", "embutido"],
     },
     {
       id: "troquel-bisagra",
@@ -153,7 +153,7 @@ export function defaultStations(): Station[] {
       x: 445,
       y: 180,
       fill: "#94C11C",
-      handles: ["cabezal", "bisagra", "embutido"],
+      handles: ["bisagra", "embutido"],
     },
     {
       id: "remachadora",
@@ -175,7 +175,7 @@ export function defaultStations(): Station[] {
       x: 705,
       y: 180,
       fill: "#94C11C",
-      handles: ["cabezal", "bisagra", "embutido"],
+      handles: ["bisagra", "embutido"],
     },
   ];
 }
@@ -191,7 +191,6 @@ export function defaultParams(): GlobalParams {
 // Rutas de cada tipo de pieza. Pintura va ANTES que Remachadora:
 // se pinta el 100%, luego solo la bisagra se remacha, y todo se embolsa.
 export const ROUTES: Record<PieceType, string[]> = {
-  cabezal: ["roladora", "pintura", "embolsado"],
   bisagra: ["roladora", "troquel-bisagra", "pintura", "remachadora", "embolsado"],
   embutido: ["roladora", "troquel-embutido", "pintura", "embolsado"],
 };
@@ -214,7 +213,6 @@ export function deriveEdges(): { from: string; to: string }[] {
 }
 
 export const PIECE_COLORS: Record<PieceType, string> = {
-  cabezal: "#94C11C",
   bisagra: "#1C1C1A",
   embutido: "#888780",
 };
