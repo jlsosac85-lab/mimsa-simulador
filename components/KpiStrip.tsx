@@ -1,6 +1,6 @@
 "use client";
 
-import { Station, GlobalParams, SimulationResult } from "@/lib/simulation";
+import { Station, GlobalParams, SimulationResult, requiredPeople } from "@/lib/simulation";
 
 interface Props {
   stations: Station[];
@@ -17,15 +17,10 @@ interface Kpi {
 export function KpiStrip({ stations, params, result }: Props) {
   const totalPeople = stations.reduce((sum, s) => sum + s.people, 0);
 
-  // Personal sugerido = optimo por estacion (misma logica que el panel de
-  // plantilla): operadores a tiempo completo equivalentes segun cuanto opera
-  // cada estacion en el turno.
-  const TURN = Math.max(11, ...stations.map((s) => s.hours));
-  const suggestedPeople = stations.reduce((sum, s) => {
-    if (s.people <= 0) return sum;
-    const util = Math.min(1, s.hours / TURN);
-    return sum + Math.max(1, Math.round(s.people * util));
-  }, 0);
+  // Personal sugerido = operadores que el ritmo de cada estacion requiere.
+  // Si se asignan mas de los necesarios, el sugerido queda por debajo del
+  // actual, evidenciando la sobre-dotacion.
+  const suggestedPeople = stations.reduce((sum, s) => sum + requiredPeople(s), 0);
 
   const kpis: Kpi[] = [
     {
@@ -53,7 +48,7 @@ export function KpiStrip({ stations, params, result }: Props) {
     {
       label: "Personal sugerido",
       value: String(suggestedPeople),
-      unit: "óptimo por estación",
+      unit: "necesario por ritmo",
     },
     {
       label: "Estaciones",
