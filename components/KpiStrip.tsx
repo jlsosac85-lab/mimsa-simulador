@@ -77,7 +77,7 @@ export function KpiStrip({ stations, params, result }: Props) {
               i > 0 ? "lg:border-l lg:border-white/10" : ""
             }`}
           >
-            <span className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-mimsa-grayLight">
+            <span className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-mimsa-grayLight">
               {k.label}
             </span>
             <span className="font-mono text-2xl font-bold leading-none text-mimsa-green">

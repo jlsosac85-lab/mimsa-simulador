@@ -35,10 +35,10 @@ interface Curve {
 interface Piece {
   id: number;
   type: PieceType;
-  stationId: string; // modo carga
+  stationId: string;
   slot: number;
   total: number;
-  stage: number; // modo transitorio
+  stage: number;
   x: number;
   y: number;
   t: number;
@@ -59,20 +59,29 @@ interface StatBucket {
 const TURN_HOURS = 11;
 const BATCH = 90;
 const PALLET_SIZE = 330;
-const TRAVEL_SPEED = 520; // u/h a lo largo de la curva
+const TRAVEL_SPEED = 520;
 
-// --- Cubo isometrico de estacion ---
-const ST_A = 32; // medio ancho del rombo superior
-const ST_B = 15; // medio alto del rombo superior (ratio ~2:1)
-const ST_H = 30; // altura del cubo
+// Paleta KPI (estaciones)
+const KPI_DARK = "#1C1C1A";
+const KPI_GREEN = "#94C11C";
 
-// --- Cubo de tarima + apilado de bolitas ---
-const PALLET_TOP = 384;
+// Cubo isometrico de estacion
+const ST_A = 32;
+const ST_B = 15;
+const ST_H = 32;
+// Apilado interno de ocupacion dentro de la estacion
+const ESTACK = { nx: 3, ny: 3, nz: 3, stepX: 6, stepY: 3, stepZ: 6.2, r: 2.3 };
+const ST_CAP = ESTACK.nx * ESTACK.ny * ESTACK.nz;
+
+// Zona de tarimas
+const LEGEND_Y = 322;
+const TITLE_Y = 348;
+const PALLET_TOP = 366;
 const PAL_SLOT = 168;
-const PAL_ROW_H = 132;
+const PAL_ROW_H = 138;
 const PAL_PER_ROW = 4;
 const PSTACK = { nx: 3, ny: 3, nz: 5, stepX: 7.5, stepY: 3.6, stepZ: 6.4, r: 3.1 };
-const PAL_CAP = PSTACK.nx * PSTACK.ny * PSTACK.nz; // bolitas por tarima
+const PAL_CAP = PSTACK.nx * PSTACK.ny * PSTACK.nz;
 
 function palletCount(target: number): number {
   return Math.max(1, Math.ceil(target / PALLET_SIZE));
@@ -85,18 +94,21 @@ function palletGeom(i: number, n: number) {
   const col = i % per;
   const row = Math.floor(i / per);
   const cx = startX + col * PAL_SLOT;
-  const baseY = PALLET_TOP + 64 + row * PAL_ROW_H;
+  const baseY = PALLET_TOP + 70 + row * PAL_ROW_H;
   return { cx, baseY };
 }
 
 function viewBoxHeight(target: number): number {
   const rows = Math.ceil(palletCount(target) / PAL_PER_ROW);
-  return PALLET_TOP + 64 + (rows - 1) * PAL_ROW_H + 70;
+  return PALLET_TOP + 70 + (rows - 1) * PAL_ROW_H + 78;
 }
 
-// Posiciones de apilado de bolitas dentro del cubo de la tarima.
-function palletStack(cx: number, baseY: number) {
-  const { nx, ny, nz, stepX, stepY, stepZ } = PSTACK;
+function isoStack(
+  cx: number,
+  baseY: number,
+  cfg: { nx: number; ny: number; nz: number; stepX: number; stepY: number; stepZ: number }
+) {
+  const { nx, ny, nz, stepX, stepY, stepZ } = cfg;
   const cells: { x: number; y: number; fo: number }[] = [];
   let fo = 0;
   for (let k = 0; k < nz; k++) {
@@ -114,7 +126,6 @@ function palletStack(cx: number, baseY: number) {
   return cells;
 }
 
-// Caras de un cubo isometrico centrado en (cx, cy).
 function cubeFaces(cx: number, cy: number, a: number, b: number, H: number) {
   const tcy = cy - H / 2;
   return {
@@ -122,17 +133,6 @@ function cubeFaces(cx: number, cy: number, a: number, b: number, H: number) {
     left: `${cx - a},${tcy} ${cx},${tcy + b} ${cx},${tcy + b + H} ${cx - a},${tcy + H}`,
     right: `${cx},${tcy + b} ${cx + a},${tcy} ${cx + a},${tcy + H} ${cx},${tcy + b + H}`,
   };
-}
-
-function shade(hex: string, pct: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  let r = (n >> 16) & 255;
-  let g = (n >> 8) & 255;
-  let bl = n & 255;
-  r = Math.round(Math.min(255, Math.max(0, r + 255 * pct)));
-  g = Math.round(Math.min(255, Math.max(0, g + 255 * pct)));
-  bl = Math.round(Math.min(255, Math.max(0, bl + 255 * pct)));
-  return `#${((r << 16) | (g << 8) | bl).toString(16).padStart(6, "0")}`;
 }
 
 function bezier(c: Curve, t: number): Pt {
@@ -154,7 +154,6 @@ function bezierLen(c: Curve): number {
   return Math.max(1, len);
 }
 
-// Curva horizontal (estacion -> estacion) con tangentes horizontales.
 function curveH(x1: number, y1: number, x2: number, y2: number): Curve {
   const c = Math.max(24, Math.abs(x2 - x1) * 0.4);
   return {
@@ -165,15 +164,19 @@ function curveH(x1: number, y1: number, x2: number, y2: number): Curve {
   };
 }
 
-// Curva hacia la tarima (tangente vertical al bajar).
-function curveV(x1: number, y1: number, x2: number, y2: number): Curve {
-  const m = (y1 + y2) / 2;
+// Curva del embolsado a la tarima activa (baja por la derecha, evita textos).
+function arrowToPallet(x1: number, y1: number, cx: number, baseY: number): Curve {
+  const top = baseY - PSTACK.nz * PSTACK.stepZ - 14;
+  const chY = baseY - PSTACK.nz * PSTACK.stepZ - 42;
   return {
     p0: { x: x1, y: y1 },
-    p1: { x: x1, y: m },
-    p2: { x: x2, y: m },
-    p3: { x: x2, y: y2 },
+    p1: { x: x1, y: chY },
+    p2: { x: cx, y: chY },
+    p3: { x: cx, y: top },
   };
+}
+function curveStr(c: Curve): string {
+  return `M ${c.p0.x} ${c.p0.y} C ${c.p1.x} ${c.p1.y}, ${c.p2.x} ${c.p2.y}, ${c.p3.x} ${c.p3.y}`;
 }
 
 export function PlantLayout({
@@ -262,7 +265,6 @@ export function PlantLayout({
     p.el.parentNode?.removeChild(p.el);
   }
 
-  // Cola de material a la izquierda del cubo de la estacion.
   function queuePos(s: Station, slot: number, total: number) {
     const COLS = 3;
     const rows = Math.max(1, Math.ceil(total / COLS));
@@ -273,7 +275,6 @@ export function PlantLayout({
     return { x, y: y0 + row * 6 };
   }
 
-  // Posicion "en proceso": sobre la cara superior del cubo.
   function servePos(s: Station): Pt {
     return { x: s.x, y: s.y - ST_H / 2 };
   }
@@ -285,7 +286,6 @@ export function PlantLayout({
     p.state = "travel";
   }
 
-  // Avanza la pieza por su curva; devuelve true al llegar al final.
   function advance(p: Piece, dt: number): boolean {
     if (!p.cv) return true;
     p.edgeT += (TRAVEL_SPEED * dt) / p.edgeLen;
@@ -307,7 +307,6 @@ export function PlantLayout({
     resetStats();
   }
 
-  // MODO CARGA: cada estacion arranca con el 100% de su material.
   function loadStations() {
     clearAll();
     const sim = simRef.current;
@@ -354,11 +353,15 @@ export function PlantLayout({
     p.serviceTime = effRate > 0 ? BATCH / effRate : 999;
   }
 
-  // ---------- MODO CARGA ----------
+  function activePalletGeom() {
+    const sim = simRef.current;
+    const nPal = nPalletsRef.current;
+    return palletGeom(Math.min(nPal - 1, Math.floor(sim.completed / PALLET_SIZE)), nPal);
+  }
+
   function stepCarga(dt: number) {
     const sim = simRef.current;
     sim.simTime += dt;
-    const nPal = nPalletsRef.current;
 
     stationsRef.current.forEach((s) => {
       const st = sim.stats[s.id];
@@ -384,8 +387,8 @@ export function PlantLayout({
         if (p.t >= p.serviceTime) {
           st.serving = null;
           if (s.id === "embolsado") {
-            const g = palletGeom(Math.min(nPal - 1, Math.floor(sim.completed / PALLET_SIZE)), nPal);
-            setTravel(p, curveV(s.x, s.y + ST_B, g.cx, g.baseY - 8));
+            const g = activePalletGeom();
+            setTravel(p, arrowToPallet(s.x, s.y + ST_B, g.cx, g.baseY));
             p.state = "toPallet";
           } else {
             const nxt = nextStationId(p.type, s.id);
@@ -413,13 +416,11 @@ export function PlantLayout({
     }
   }
 
-  // ---------- MODO TRANSITORIO ----------
   function stepTransitorio(dt: number) {
     const sim = simRef.current;
     sim.simTime += dt;
     const t = sim.simTime;
     const tgt = targetRef.current;
-    const nPal = nPalletsRef.current;
     const rol = stationById("roladora");
 
     const arrivalsPerHour = tgt / TURN_HOURS / BATCH;
@@ -449,9 +450,9 @@ export function PlantLayout({
         continue;
       }
       if (p.stage >= route.length) {
-        const g = palletGeom(Math.min(nPal - 1, Math.floor(sim.completed / PALLET_SIZE)), nPal);
+        const g = activePalletGeom();
         const emb = stationById("embolsado")!;
-        setTravel(p, curveV(emb.x, emb.y + ST_B, g.cx, g.baseY - 8));
+        setTravel(p, arrowToPallet(emb.x, emb.y + ST_B, g.cx, g.baseY));
         p.state = "toPallet";
         continue;
       }
@@ -487,8 +488,8 @@ export function PlantLayout({
             const to = stationById(route[p.stage])!;
             setTravel(p, curveH(s.x + ST_A, s.y, to.x - ST_A, to.y));
           } else {
-            const g = palletGeom(Math.min(nPal - 1, Math.floor(sim.completed / PALLET_SIZE)), nPal);
-            setTravel(p, curveV(s.x, s.y + ST_B, g.cx, g.baseY - 8));
+            const g = activePalletGeom();
+            setTravel(p, arrowToPallet(s.x, s.y + ST_B, g.cx, g.baseY));
             p.state = "toPallet";
           }
         }
@@ -530,18 +531,25 @@ export function PlantLayout({
       if (qEl) qEl.textContent = String(pend);
       if (uEl) uEl.textContent = `${Math.round(utilC)}%`;
 
+      // Llenado interno por ocupacion
+      const nShow = Math.round((utilC / 100) * ST_CAP);
+      const occ = svg.querySelectorAll(`[data-st="${s.id}"]`);
+      occ.forEach((node) => {
+        const fo = Number((node as SVGElement).getAttribute("data-fo"));
+        (node as SVGElement).setAttribute("opacity", fo < nShow ? "1" : "0");
+      });
+
       const metric = isCarga ? pend : st.queue.length;
       if (metric > bnVal && sim.simTime > 0.2) {
         bnVal = metric;
         bnId = s.id;
       }
 
-      // Resalta la cara superior del cubo si esta saturado.
       const topEl = svg.querySelector(`#cube-top-${s.id}`) as SVGPolygonElement | null;
       if (topEl && sim.simTime > 0.2) {
         const alert = isCarga ? utilC > 95 && pend > 1 : utilC > 90 && st.queue.length > 2;
-        topEl.setAttribute("stroke", alert ? "#A32D2D" : utilC > 80 ? "#EF9F27" : "#FFFFFF");
-        topEl.setAttribute("stroke-width", alert ? "2.4" : utilC > 80 ? "1.8" : "1");
+        topEl.setAttribute("stroke", alert ? "#A32D2D" : utilC > 80 ? "#EF9F27" : KPI_GREEN);
+        topEl.setAttribute("stroke-width", alert ? "2.4" : utilC > 80 ? "2" : "1.3");
       }
     });
 
@@ -565,16 +573,26 @@ export function PlantLayout({
         "es-MX"
       )} marcos terminados`;
 
+    // Flecha que apunta a la tarima que se esta llenando
+    const arrow = svg.querySelector("#pallet-arrow") as SVGPathElement | null;
+    const emb = stationById("embolsado");
+    if (arrow && emb) {
+      const g = activePalletGeom();
+      arrow.setAttribute("d", curveStr(arrowToPallet(emb.x, emb.y + ST_B, g.cx, g.baseY)));
+    }
+
     const badge = svg.querySelector("#bn-badge") as SVGGElement | null;
     if (badge) {
       const show = bnId && bnVal > (isCarga ? 0 : 2) && sim.simTime > 0.2;
       if (show) {
         const s = stationById(bnId!);
         if (s) {
+          const sp2 = s.name.indexOf(" ");
+          const twoL = s.name.length > 11 && sp2 > 0;
           badge.style.display = "";
           const r = badge.querySelector("rect");
           const tx = badge.querySelector("text");
-          const by = s.y - ST_H / 2 - ST_B - 26;
+          const by = s.y - ST_H / 2 - ST_B - (twoL ? 26 : 18) - 17;
           r?.setAttribute("x", String(s.x - 60));
           r?.setAttribute("y", String(by));
           tx?.setAttribute("x", String(s.x));
@@ -631,8 +649,8 @@ export function PlantLayout({
       stationsRef.current.forEach((s) => {
         const topEl = svgRef.current?.querySelector(`#cube-top-${s.id}`) as SVGPolygonElement | null;
         if (topEl) {
-          topEl.setAttribute("stroke", "#FFFFFF");
-          topEl.setAttribute("stroke-width", "1");
+          topEl.setAttribute("stroke", KPI_GREEN);
+          topEl.setAttribute("stroke-width", "1.3");
         }
       });
     }
@@ -656,9 +674,12 @@ export function PlantLayout({
           <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
             <path d="M0,0 L10,5 L0,10 z" fill="#888780" />
           </marker>
+          <marker id="arrowGreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#6F9213" />
+          </marker>
         </defs>
 
-        {/* Conectores (curvas) que las bolitas siguen */}
+        {/* Conectores que las bolitas siguen */}
         <g stroke="#888780" strokeWidth="1.5" fill="none">
           {(() => {
             const rol = stations.find((s) => s.id === "roladora");
@@ -671,23 +692,29 @@ export function PlantLayout({
             const b = stations.find((s) => s.id === to);
             if (!a || !b) return null;
             const cv = curveH(a.x + ST_A, a.y, b.x - ST_A, b.y);
-            const d = `M ${cv.p0.x} ${cv.p0.y} C ${cv.p1.x} ${cv.p1.y}, ${cv.p2.x} ${cv.p2.y}, ${cv.p3.x} ${cv.p3.y}`;
-            return <path key={`${from}-${to}`} d={d} markerEnd="url(#arrow)" />;
+            return <path key={`${from}-${to}`} d={curveStr(cv)} markerEnd="url(#arrow)" />;
           })}
-          {(() => {
-            const emb = stations.find((s) => s.id === "embolsado");
-            const g = palletGeom(0, nPal);
-            return emb ? (
-              <path
-                d={`M ${emb.x} ${emb.y + ST_B} C ${emb.x} ${(emb.y + g.baseY) / 2}, ${g.cx} ${(emb.y + g.baseY) / 2}, ${g.cx} ${g.baseY - 16}`}
-                strokeDasharray="4 3"
-                markerEnd="url(#arrow)"
-              />
-            ) : null;
-          })()}
         </g>
 
-        {/* Entrada (cubo gris) */}
+        {/* Flecha dinamica a la tarima activa */}
+        {(() => {
+          const emb = stations.find((s) => s.id === "embolsado");
+          const g = palletGeom(0, nPal);
+          if (!emb) return null;
+          return (
+            <path
+              id="pallet-arrow"
+              d={curveStr(arrowToPallet(emb.x, emb.y + ST_B, g.cx, g.baseY))}
+              stroke="#6F9213"
+              strokeWidth="2"
+              fill="none"
+              strokeDasharray="5 3"
+              markerEnd="url(#arrowGreen)"
+            />
+          );
+        })()}
+
+        {/* Entrada */}
         {(() => {
           const f = cubeFaces(40, 180, 18, 9, 22);
           return (
@@ -700,49 +727,65 @@ export function PlantLayout({
           );
         })()}
 
-        {/* Estaciones (cubos isometricos) */}
+        {/* Estaciones: cubos translucidos (paleta KPI) que se llenan por ocupacion */}
         {stations.map((s) => {
-          const isDark = s.fill === "#1C1C1A";
-          const base = isDark ? "#2C2C2A" : "#94C11C";
-          const topC = shade(base, isDark ? 0.16 : 0.18);
-          const leftC = base;
-          const rightC = shade(base, -0.16);
-          const capColor = isDark ? "#94C11C" : "#1C1C1A";
           const f = cubeFaces(s.x, s.y, ST_A, ST_B, ST_H);
+          const occ = isoStack(s.x, s.y + ST_H / 2 - 3, ESTACK);
+          const occDraw = [...occ].sort((a, b) => a.y - b.y);
           const sp = s.name.indexOf(" ");
           const twoLines = s.name.length > 11 && sp > 0;
           const line1 = twoLines ? s.name.slice(0, sp) : s.name;
           const line2 = twoLines ? s.name.slice(sp + 1) : "";
-          const nameTopY = s.y - ST_H / 2 - ST_B - (twoLines ? 13 : 5);
+          const nameY = s.y - ST_H / 2 - ST_B - (twoLines ? 24 : 16);
+          const capY = nameY + (twoLines ? 20 : 10);
           return (
             <g key={s.id}>
-              <polygon points={f.left} fill={leftC} stroke={shade(base, -0.28)} strokeWidth="0.8" />
-              <polygon points={f.right} fill={rightC} stroke={shade(base, -0.28)} strokeWidth="0.8" />
-              <polygon id={`cube-top-${s.id}`} points={f.top} fill={topC} stroke="#FFFFFF" strokeWidth="1" />
-              {/* nombre arriba */}
+              {/* bolitas de ocupacion dentro del cubo */}
+              {occDraw.map((c) => (
+                <circle
+                  key={`occ-${s.id}-${c.fo}`}
+                  data-st={s.id}
+                  data-fo={c.fo}
+                  cx={c.x}
+                  cy={c.y}
+                  r={ESTACK.r}
+                  fill={KPI_GREEN}
+                  stroke={KPI_DARK}
+                  strokeWidth="0.4"
+                  opacity="0"
+                />
+              ))}
+              {/* vidrio translucido */}
+              <polygon points={f.top} fill={KPI_DARK} fillOpacity="0.05" />
+              <polygon points={f.left} fill={KPI_DARK} fillOpacity="0.13" />
+              <polygon points={f.right} fill={KPI_DARK} fillOpacity="0.18" />
+              {/* aristas verde KPI */}
+              <polygon id={`cube-top-${s.id}`} points={f.top} fill="none" stroke={KPI_GREEN} strokeWidth="1.3" />
+              <polygon points={f.left} fill="none" stroke={KPI_GREEN} strokeWidth="1.3" />
+              <polygon points={f.right} fill="none" stroke={KPI_GREEN} strokeWidth="1.3" />
+              {/* nombre + capacidad arriba */}
               {twoLines ? (
                 <>
-                  <text x={s.x} y={nameTopY} textAnchor="middle" fontSize="9" fontWeight="700" fill="#1C1C1A">{line1}</text>
-                  <text x={s.x} y={nameTopY + 10} textAnchor="middle" fontSize="9" fontWeight="700" fill="#1C1C1A">{line2}</text>
+                  <text x={s.x} y={nameY} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#1C1C1A">{line1}</text>
+                  <text x={s.x} y={nameY + 10} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#1C1C1A">{line2}</text>
                 </>
               ) : (
-                <text x={s.x} y={nameTopY} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#1C1C1A">{s.name}</text>
+                <text x={s.x} y={nameY} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#1C1C1A">{s.name}</text>
               )}
-              {/* capacidad sobre la cara frontal */}
-              <text x={s.x} y={s.y + ST_B + 4} textAnchor="middle" fontSize="8" fontWeight="600" fill={capColor}>
+              <text x={s.x} y={capY} textAnchor="middle" fontSize="8" fontWeight="600" fill="#6F9213">
                 {Math.round(stationCapacity(s))}/t
               </text>
               {/* pendiente + ocupacion debajo */}
               <text x={s.x} y={s.y + ST_B + ST_H / 2 + 12} textAnchor="middle" fontSize="9" fill="#5F5E5A">
                 Pend:{" "}
                 <tspan id={`q-${s.id}`} fontWeight="600" fill="#1C1C1A">0</tspan> · Ocup.{" "}
-                <tspan id={`u-${s.id}`} fontWeight="600" fill="#1C1C1A">0%</tspan>
+                <tspan id={`u-${s.id}`} fontWeight="700" fill="#6F9213">0%</tspan>
               </text>
             </g>
           );
         })}
 
-        {/* Capa de bolitas en movimiento */}
+        {/* Bolitas en movimiento */}
         <g ref={layerRef} />
 
         {/* Badge cuello de botella */}
@@ -752,32 +795,30 @@ export function PlantLayout({
         </g>
 
         {/* Leyenda */}
-        <circle cx="40" cy={PALLET_TOP - 52} r="4" fill="#1C1C1A" stroke="#FFFFFF" strokeWidth="0.8" />
-        <text x="50" y={PALLET_TOP - 49} fontSize="9" fill="#5F5E5A">Larguero bisagra</text>
-        <circle cx="170" cy={PALLET_TOP - 52} r="4" fill="#888780" stroke="#FFFFFF" strokeWidth="0.8" />
-        <text x="180" y={PALLET_TOP - 49} fontSize="9" fill="#5F5E5A">Larguero embutido</text>
-        <text x="320" y={PALLET_TOP - 49} fontSize="9" fill="#5F5E5A">Cada bolita = 90 unidades</text>
+        <circle cx="40" cy={LEGEND_Y} r="4" fill="#1C1C1A" stroke="#FFFFFF" strokeWidth="0.8" />
+        <text x="50" y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Larguero bisagra</text>
+        <circle cx="172" cy={LEGEND_Y} r="4" fill="#888780" stroke="#FFFFFF" strokeWidth="0.8" />
+        <text x="182" y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Larguero embutido</text>
+        <text x="320" y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Cada bolita = 90 unidades</text>
 
-        <text x="20" y={PALLET_TOP - 18} fontSize="11" fontWeight="700" fill="#1C1C1A">PRODUCTO TERMINADO</text>
-        <text id="pallet-summary" x="205" y={PALLET_TOP - 18} fontSize="10" fill="#5F5E5A">
+        {/* Titulo zona de tarimas */}
+        <text x="20" y={TITLE_Y} fontSize="11" fontWeight="700" fill="#1C1C1A">PRODUCTO TERMINADO</text>
+        <text id="pallet-summary" x="200" y={TITLE_Y} fontSize="10" fill="#5F5E5A">
           Tarimas llenas: 0/{nPal} · 0 marcos terminados
         </text>
 
-        {/* Tarimas como cubos isometricos que se llenan de bolitas */}
+        {/* Tarimas: cubos isometricos que se llenan de bolitas */}
         {Array.from({ length: nPal }).map((_, pi) => {
           const g = palletGeom(pi, nPal);
           const cx = g.cx;
           const baseY = g.baseY;
-          // contorno del cubo objetivo (volumen lleno)
           const topRombo = baseY - PSTACK.nz * PSTACK.stepZ - 2;
           const wA = (PSTACK.nx - 1) * PSTACK.stepX + 8;
           const wB = ((PSTACK.nx + PSTACK.ny - 2) * PSTACK.stepY) / 2 + 5;
-          const stack = palletStack(cx, baseY);
+          const stack = isoStack(cx, baseY, PSTACK);
           const draw = [...stack].sort((a, b) => a.y - b.y);
-          // plataforma de madera (rombo)
           return (
             <g key={`pallet-${pi}`}>
-              {/* contorno volumen objetivo */}
               <polygon
                 points={`${cx},${topRombo - wB} ${cx + wA},${topRombo} ${cx},${topRombo + wB} ${cx - wA},${topRombo}`}
                 fill="none"
@@ -788,7 +829,6 @@ export function PlantLayout({
               <line x1={cx - wA} y1={topRombo} x2={cx - wA} y2={baseY} stroke="#C9C7BD" strokeWidth="1" strokeDasharray="3 3" />
               <line x1={cx + wA} y1={topRombo} x2={cx + wA} y2={baseY} stroke="#C9C7BD" strokeWidth="1" strokeDasharray="3 3" />
               <line x1={cx} y1={topRombo + wB} x2={cx} y2={baseY + wB} stroke="#C9C7BD" strokeWidth="1" strokeDasharray="3 3" />
-              {/* bolitas apiladas (se encienden segun el llenado) */}
               {draw.map((c) => (
                 <circle
                   key={`${pi}-${c.fo}`}
@@ -803,27 +843,16 @@ export function PlantLayout({
                   opacity="0"
                 />
               ))}
-              {/* plataforma de madera isometrica */}
               <polygon
                 points={`${cx},${baseY + wB} ${cx + wA},${baseY} ${cx},${baseY - wB} ${cx - wA},${baseY}`}
                 fill="#A06A33"
                 stroke="#6E4420"
                 strokeWidth="0.8"
               />
-              <polygon
-                points={`${cx - wA},${baseY} ${cx},${baseY + wB} ${cx},${baseY + wB + 7} ${cx - wA},${baseY + 7}`}
-                fill="#6E4420"
-              />
-              <polygon
-                points={`${cx},${baseY + wB} ${cx + wA},${baseY} ${cx + wA},${baseY + 7} ${cx},${baseY + wB + 7}`}
-                fill="#5A3618"
-              />
-              <text x={cx} y={baseY + wB + 22} textAnchor="middle" fontSize="9" fontWeight="600" fill="#1C1C1A">
-                Tarima {pi + 1}
-              </text>
-              <text id={`pallet-lbl-${pi}`} x={cx} y={baseY + wB + 33} textAnchor="middle" fontSize="9" fill="#5F5E5A">
-                0/{PALLET_SIZE}
-              </text>
+              <polygon points={`${cx - wA},${baseY} ${cx},${baseY + wB} ${cx},${baseY + wB + 7} ${cx - wA},${baseY + 7}`} fill="#6E4420" />
+              <polygon points={`${cx},${baseY + wB} ${cx + wA},${baseY} ${cx + wA},${baseY + 7} ${cx},${baseY + wB + 7}`} fill="#5A3618" />
+              <text x={cx} y={baseY + wB + 22} textAnchor="middle" fontSize="9" fontWeight="600" fill="#1C1C1A">Tarima {pi + 1}</text>
+              <text id={`pallet-lbl-${pi}`} x={cx} y={baseY + wB + 33} textAnchor="middle" fontSize="9" fill="#5F5E5A">0/{PALLET_SIZE}</text>
             </g>
           );
         })}

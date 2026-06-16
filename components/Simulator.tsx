@@ -192,16 +192,23 @@ export function Simulator() {
         </div>
         <button
           onClick={exportConfig}
-          className="ml-auto inline-flex items-center gap-2 rounded-md border border-mimsa-line bg-white px-4 py-2 text-sm font-medium text-mimsa-black transition-opacity hover:opacity-90"
+          className="inline-flex items-center gap-2 rounded-md border border-mimsa-line bg-white px-4 py-2 text-sm font-medium text-mimsa-black transition-opacity hover:opacity-90"
         >
           ↓ Exportar escenario (JSON)
         </button>
-        <div className="font-mono text-[11px] text-mimsa-gray">
-          Hora {live.hour.toFixed(1)}/11 · Marcos{" "}
-          <span className="font-semibold text-mimsa-greenDark">
-            {live.completed}
-          </span>{" "}
-          · WIP {live.wip}
+        <div className="ml-auto inline-flex items-center gap-3 rounded-lg border border-mimsa-green/40 bg-mimsa-black px-4 py-2 font-mono text-sm font-bold text-mimsa-green shadow-sm">
+          <span>
+            Hora <span className="text-white">{live.hour.toFixed(1)}</span>
+            <span className="text-mimsa-green/60">/11</span>
+          </span>
+          <span className="text-mimsa-green/40">·</span>
+          <span>
+            Marcos <span className="text-white">{live.completed}</span>
+          </span>
+          <span className="text-mimsa-green/40">·</span>
+          <span>
+            WIP <span className="text-white">{live.wip}</span>
+          </span>
         </div>
       </section>
 
