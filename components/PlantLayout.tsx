@@ -198,8 +198,11 @@ export function PlantLayout({
           st.serving = p;
           p.state = "serve";
           p.t = 0;
-          const ratePerHour = s.ratePerHour;
-          p.serviceTime = ratePerHour > 0 ? BATCH / ratePerHour : 999;
+          // La capacidad (marcos/hora) se reparte entre los tipos de pieza
+          // que procesa la estacion. La Roladora hace 3 piezas por marco,
+          // asi que procesa cada pieza mas rapido (no se satura de mas).
+          const effectiveRate = s.ratePerHour * (s.handles.length || 1);
+          p.serviceTime = effectiveRate > 0 ? BATCH / effectiveRate : 999;
         }
       } else if (p.state === "serve") {
         const offset =

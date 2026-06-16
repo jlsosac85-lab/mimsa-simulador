@@ -252,7 +252,7 @@ export function Simulator() {
             Estaciones — edita personas, ritmo y horas
           </h2>
           <span className="text-[11px] text-mimsa-gray">
-            Capacidad = personas × marcos/h·persona × horas
+            Capacidad = marcos/hora × horas
           </span>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
