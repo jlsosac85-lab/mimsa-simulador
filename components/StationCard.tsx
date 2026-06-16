@@ -81,11 +81,11 @@ export function StationCard({ station, isBottleneck, onChange }: Props) {
           onChange={(v) => onChange(station.id, { people: v })}
         />
         <NumberField
-          label="Marcos/h·pers"
-          value={station.ratePerPersonHour}
+          label="Marcos/hora"
+          value={station.ratePerHour}
           min={0}
-          step={5}
-          onChange={(v) => onChange(station.id, { ratePerPersonHour: v })}
+          step={10}
+          onChange={(v) => onChange(station.id, { ratePerHour: v })}
         />
         <NumberField
           label="Horas"

@@ -22,10 +22,7 @@ export function ResultsPanel({ result, params, liveCompleted }: Props) {
   if (!feasible) {
     const b = bottleneck.id;
     if (b === "pintura") {
-      tips.push(
-        "Sube personas en Pintura o instala el sprocket + cadena para duplicar su ritmo"
-      );
-      tips.push("Habilita pintura en el turno noche para sumar horas");
+      tips.push("Sube el ritmo de Pintura (marcos/hora) o extiéndela al turno noche");
     } else if (b === "roladora") {
       tips.push(
         "Extiende horas de la Roladora o agrega una segunda para el larguero"

@@ -14,7 +14,7 @@ import { StationCard } from "./StationCard";
 import { PlantLayout } from "./PlantLayout";
 import { ResultsPanel } from "./ResultsPanel";
 
-type Preset = "actual" | "sprocket" | "noche" | "embutido" | "max";
+type Preset = "actual" | "noche" | "embutido" | "max";
 
 export function Simulator() {
   const [stations, setStations] = useState<Station[]>(defaultStations());
@@ -40,21 +40,17 @@ export function Simulator() {
   function applyPreset(p: Preset) {
     resetSim();
     const base = defaultStations();
-    if (p === "sprocket") {
-      const pint = base.find((s) => s.id === "pintura")!;
-      pint.ratePerPersonHour = 80; // sprocket+cadena duplica el ritmo
-    } else if (p === "noche") {
+    if (p === "noche") {
       const pint = base.find((s) => s.id === "pintura")!;
       pint.hours = 11; // pintura tambien en turno noche
     } else if (p === "embutido") {
       const emb = base.find((s) => s.id === "troquel-embutido")!;
-      emb.ratePerPersonHour = 240; // embutir solo 1 larguero
+      emb.ratePerHour = 240; // embutir solo 1 larguero duplica el ritmo
     } else if (p === "max") {
       const pint = base.find((s) => s.id === "pintura")!;
-      pint.ratePerPersonHour = 80;
       pint.hours = 11;
       const emb = base.find((s) => s.id === "troquel-embutido")!;
-      emb.ratePerPersonHour = 240;
+      emb.ratePerHour = 240;
       const rol = base.find((s) => s.id === "roladora")!;
       rol.hours = 11;
     }
@@ -68,9 +64,9 @@ export function Simulator() {
       estaciones: stations.map((s) => ({
         nombre: s.name,
         personas: s.people,
-        marcosPorHoraPorPersona: s.ratePerPersonHour,
+        marcosPorHora: s.ratePerHour,
         horas: s.hours,
-        capacidadTurno: Math.round(s.people * s.ratePerPersonHour * s.hours),
+        capacidadTurno: Math.round(s.ratePerHour * s.hours),
       })),
       resultado: {
         capacidadSistema: Math.round(result.systemCapacity),
@@ -117,7 +113,6 @@ export function Simulator() {
         </div>
         <div className="flex flex-wrap gap-2">
           <PresetButton label="Estado actual" onClick={() => applyPreset("actual")} />
-          <PresetButton label="+ Sprocket y cadena" onClick={() => applyPreset("sprocket")} />
           <PresetButton label="+ Pintura turno noche" onClick={() => applyPreset("noche")} />
           <PresetButton label="+ Embutir solo 1" onClick={() => applyPreset("embutido")} />
           <PresetButton label="Todas las mejoras" onClick={() => applyPreset("max")} primary />

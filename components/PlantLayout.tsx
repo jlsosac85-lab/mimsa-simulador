@@ -7,6 +7,7 @@ import {
   ROUTES,
   PIECE_COLORS,
   stationCapacity,
+  deriveEdges,
 } from "@/lib/simulation";
 
 interface Props {
@@ -197,7 +198,7 @@ export function PlantLayout({
           st.serving = p;
           p.state = "serve";
           p.t = 0;
-          const ratePerHour = s.people * s.ratePerPersonHour;
+          const ratePerHour = s.ratePerHour;
           p.serviceTime = ratePerHour > 0 ? BATCH / ratePerHour : 999;
         }
       } else if (p.state === "serve") {
@@ -373,18 +374,26 @@ export function PlantLayout({
           </marker>
         </defs>
 
-        {/* Conexiones de flujo */}
+        {/* Conexiones de flujo (derivadas de las rutas y posiciones reales) */}
         <g stroke="#888780" strokeWidth="1.5" fill="none">
-          <path d="M 60 180 L 110 180" markerEnd="url(#arrow)" />
-          <path d="M 180 180 L 220 180" markerEnd="url(#arrow)" />
-          <path d="M 220 175 Q 255 175 255 100 L 290 100" markerEnd="url(#arrow)" />
-          <path d="M 220 180 L 290 180" markerEnd="url(#arrow)" />
-          <path d="M 220 185 Q 255 185 255 280 L 290 280" markerEnd="url(#arrow)" />
-          <path d="M 360 100 Q 400 100 400 175 L 430 175" markerEnd="url(#arrow)" />
-          <path d="M 360 180 L 430 180" markerEnd="url(#arrow)" />
-          <path d="M 360 280 Q 400 280 400 185 L 490 185" markerEnd="url(#arrow)" />
-          <path d="M 500 180 L 560 180" markerEnd="url(#arrow)" />
-          <path d="M 630 180 L 680 180" markerEnd="url(#arrow)" />
+          {/* Entrada -> primera estacion */}
+          <path d="M 60 180 L 95 180" markerEnd="url(#arrow)" />
+          {deriveEdges().map(({ from, to }) => {
+            const a = stations.find((s) => s.id === from);
+            const b = stations.find((s) => s.id === to);
+            if (!a || !b) return null;
+            const halfA = (a.id === "embolsado" ? 55 : 70) / 2;
+            const halfB = (b.id === "embolsado" ? 55 : 70) / 2;
+            const x1 = a.x + halfA;
+            const y1 = a.y;
+            const x2 = b.x - halfB - 7; // deja hueco para la punta de flecha
+            const y2 = b.y;
+            const c = Math.max(24, (x2 - x1) * 0.4);
+            const d = `M ${x1} ${y1} C ${x1 + c} ${y1}, ${x2 - c} ${y2}, ${x2} ${y2}`;
+            return (
+              <path key={`${from}-${to}`} d={d} markerEnd="url(#arrow)" />
+            );
+          })}
         </g>
 
         {/* Entrada */}
