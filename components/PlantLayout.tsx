@@ -170,7 +170,7 @@ export function PlantLayout({
 
     stationsRef.current.forEach((s) => {
       const st = sim.stats[s.id];
-      if (st && st.serving && t <= s.hours) st.busy += dt;
+      if (st && st.serving) st.busy += dt;
     });
 
     for (let i = sim.pieces.length - 1; i >= 0; i--) {
@@ -210,7 +210,6 @@ export function PlantLayout({
       if (!s) continue;
       const st = sim.stats[s.id];
       if (!st) continue;
-      const inWindow = t <= s.hours;
 
       if (p.state === "travel") {
         const tx = s.x - 18;
@@ -228,7 +227,7 @@ export function PlantLayout({
         const offset = p.type === "embutido" ? 3 : -3;
         const dy = s.y + Math.floor(idx / 6) * 5 + offset;
         setPos(p, dx, dy);
-        if (inWindow && !st.serving && st.queue[0] === p) {
+        if (!st.serving && st.queue[0] === p) {
           st.queue.shift();
           st.serving = p;
           p.state = "serve";
@@ -262,7 +261,7 @@ export function PlantLayout({
     stationsRef.current.forEach((s) => {
       const st = sim.stats[s.id];
       if (!st) return;
-      const elapsed = Math.min(sim.simTime, s.hours);
+      const elapsed = Math.min(sim.simTime, TURN_HOURS);
       const util = elapsed > 0 ? (st.busy / elapsed) * 100 : 0;
       const utilC = Math.min(100, Math.max(0, util));
 
