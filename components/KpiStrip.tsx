@@ -17,6 +17,16 @@ interface Kpi {
 export function KpiStrip({ stations, params, result }: Props) {
   const totalPeople = stations.reduce((sum, s) => sum + s.people, 0);
 
+  // Personal sugerido = optimo por estacion (misma logica que el panel de
+  // plantilla): operadores a tiempo completo equivalentes segun cuanto opera
+  // cada estacion en el turno.
+  const TURN = Math.max(11, ...stations.map((s) => s.hours));
+  const suggestedPeople = stations.reduce((sum, s) => {
+    if (s.people <= 0) return sum;
+    const util = Math.min(1, s.hours / TURN);
+    return sum + Math.max(1, Math.round(s.people * util));
+  }, 0);
+
   const kpis: Kpi[] = [
     {
       label: "Capacidad / turno",
@@ -38,7 +48,12 @@ export function KpiStrip({ stations, params, result }: Props) {
     {
       label: "Personal en línea",
       value: String(totalPeople),
-      unit: "operarios",
+      unit: "actual",
+    },
+    {
+      label: "Personal sugerido",
+      value: String(suggestedPeople),
+      unit: "óptimo por estación",
     },
     {
       label: "Estaciones",
@@ -54,7 +69,7 @@ export function KpiStrip({ stations, params, result }: Props) {
 
   return (
     <div className="mb-4 overflow-hidden rounded-xl border border-mimsa-green/30 bg-mimsa-black shadow-sm">
-      <div className="grid grid-cols-2 gap-x-2 gap-y-4 p-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-x-2 gap-y-4 p-4 sm:grid-cols-3 lg:grid-cols-7">
         {kpis.map((k, i) => (
           <div
             key={k.label}

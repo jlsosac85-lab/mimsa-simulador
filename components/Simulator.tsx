@@ -15,8 +15,6 @@ import { PlantLayout } from "./PlantLayout";
 import { StaffingPanel } from "./StaffingPanel";
 import { ResultsPanel } from "./ResultsPanel";
 
-type Preset = "actual" | "noche" | "embutido" | "max";
-
 export function Simulator() {
   const [stations, setStations] = useState<Station[]>(defaultStations());
   const [params, setParams] = useState<GlobalParams>(defaultParams());
@@ -37,26 +35,6 @@ export function Simulator() {
     setRunning(false);
     setLive({ hour: 0, completed: 0, wip: 0 });
     window.dispatchEvent(new Event("mimsa-reset"));
-  }
-
-  function applyPreset(p: Preset) {
-    resetSim();
-    const base = defaultStations();
-    if (p === "noche") {
-      const pint = base.find((s) => s.id === "pintura")!;
-      pint.hours = 11; // pintura tambien en turno noche
-    } else if (p === "embutido") {
-      const emb = base.find((s) => s.id === "troquel-embutido")!;
-      emb.ratePerHour = 240; // embutir solo 1 larguero duplica el ritmo
-    } else if (p === "max") {
-      const pint = base.find((s) => s.id === "pintura")!;
-      pint.hours = 11;
-      const emb = base.find((s) => s.id === "troquel-embutido")!;
-      emb.ratePerHour = 240;
-      const rol = base.find((s) => s.id === "roladora")!;
-      rol.hours = 11;
-    }
-    setStations(base);
   }
 
   function exportConfig() {
@@ -106,20 +84,6 @@ export function Simulator() {
 
       {/* Cintilla de KPIs principales */}
       <KpiStrip stations={stations} params={params} result={result} />
-
-
-      {/* Presets */}
-      <section className="mb-4">
-        <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-mimsa-gray">
-          Escenarios rápidos (palancas del análisis)
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <PresetButton label="Estado actual" onClick={() => applyPreset("actual")} />
-          <PresetButton label="+ Pintura turno noche" onClick={() => applyPreset("noche")} />
-          <PresetButton label="+ Embutir solo 1" onClick={() => applyPreset("embutido")} />
-          <PresetButton label="Todas las mejoras" onClick={() => applyPreset("max")} primary />
-        </div>
-      </section>
 
       {/* Parametros globales */}
       <section className="mb-4 grid gap-3 rounded-lg bg-mimsa-bgAlt p-4 sm:grid-cols-3">
@@ -295,28 +259,5 @@ export function Simulator() {
         estación.
       </footer>
     </div>
-  );
-}
-
-function PresetButton({
-  label,
-  onClick,
-  primary,
-}: {
-  label: string;
-  onClick: () => void;
-  primary?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-85 ${
-        primary
-          ? "bg-mimsa-black text-mimsa-green"
-          : "border border-mimsa-line bg-white text-mimsa-black"
-      }`}
-    >
-      {label}
-    </button>
   );
 }

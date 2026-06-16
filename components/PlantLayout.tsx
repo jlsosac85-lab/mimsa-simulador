@@ -585,18 +585,31 @@ export function PlantLayout({
           const isDark = s.fill === "#1C1C1A";
           const w = 70;
           const h = 50;
+          const txtColor = isDark ? "white" : "#1C1C1A";
+          const capColor = isDark ? "#94C11C" : "#1C1C1A";
+          // Nombres largos con espacio -> dos lineas (ej. "Troquel Bisagra")
+          const sp = s.name.indexOf(" ");
+          const twoLines = s.name.length > 11 && sp > 0;
+          const line1 = twoLines ? s.name.slice(0, sp) : s.name;
+          const line2 = twoLines ? s.name.slice(sp + 1) : "";
           return (
             <g key={s.id}>
               <rect id={`rect-${s.id}`} x={s.x - w / 2} y={s.y - h / 2} width={w} height={h} rx="4" fill={s.fill} stroke={isDark ? "#94C11C" : "#1C1C1A"} strokeWidth="1.5" />
-              <text x={s.x} y={s.y - 2} textAnchor="middle" fontSize="9" fontWeight="600" fill={isDark ? "white" : "#1C1C1A"}>
-                {s.name.length > 12 ? s.name.slice(0, 11) + "…" : s.name}
-              </text>
-              <text x={s.x} y={s.y + 10} textAnchor="middle" fontSize="8" fill={isDark ? "#94C11C" : "#1C1C1A"}>
-                {Math.round(stationCapacity(s))}/t
-              </text>
+              {twoLines ? (
+                <>
+                  <text x={s.x} y={s.y - 9} textAnchor="middle" fontSize="8.5" fontWeight="600" fill={txtColor}>{line1}</text>
+                  <text x={s.x} y={s.y + 1} textAnchor="middle" fontSize="8.5" fontWeight="600" fill={txtColor}>{line2}</text>
+                  <text x={s.x} y={s.y + 13} textAnchor="middle" fontSize="8" fill={capColor}>{Math.round(stationCapacity(s))}/t</text>
+                </>
+              ) : (
+                <>
+                  <text x={s.x} y={s.y - 2} textAnchor="middle" fontSize="9" fontWeight="600" fill={txtColor}>{s.name}</text>
+                  <text x={s.x} y={s.y + 10} textAnchor="middle" fontSize="8" fill={capColor}>{Math.round(stationCapacity(s))}/t</text>
+                </>
+              )}
               <text x={s.x} y={s.y + h / 2 + 14} textAnchor="middle" fontSize="9" fill="#5F5E5A">
                 Pend:{" "}
-                <tspan id={`q-${s.id}`} fontWeight="600" fill="#1C1C1A">0</tspan> ·{" "}
+                <tspan id={`q-${s.id}`} fontWeight="600" fill="#1C1C1A">0</tspan> · Ocup.{" "}
                 <tspan id={`u-${s.id}`} fontWeight="600" fill="#1C1C1A">0%</tspan>
               </text>
             </g>
