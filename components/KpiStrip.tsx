@@ -1,6 +1,8 @@
 "use client";
 
 import { Station, GlobalParams, SimulationResult } from "@/lib/simulation";
+import { FlagsBar } from "./FlagsBar";
+import { WeatherWidget } from "./WeatherWidget";
 
 interface Props {
   stations: Station[];
@@ -12,7 +14,7 @@ interface Kpi {
   label: string;
   value: string;
   unit?: string;
-  tone?: "green" | "white" | "red";
+  tone?: "green" | "white" | "amber";
 }
 
 export function KpiStrip({ stations, params, result }: Props) {
@@ -37,7 +39,7 @@ export function KpiStrip({ stations, params, result }: Props) {
       unit: `${Math.round(
         result.stationResults.find((r) => r.isBottleneck)!.capacity
       ).toLocaleString("es-MX")} máx`,
-      tone: "red",
+      tone: "amber",
     },
     {
       label: "Personal en línea",
@@ -48,7 +50,7 @@ export function KpiStrip({ stations, params, result }: Props) {
     {
       label: "Estaciones",
       value: String(stations.length),
-      unit: "en serie y paralelo",
+      unit: "serie y paralelo",
       tone: "white",
     },
     {
@@ -60,34 +62,47 @@ export function KpiStrip({ stations, params, result }: Props) {
   ];
 
   return (
-    <div className="mb-4 overflow-hidden rounded-lg border border-mimsa-carbon bg-mimsa-carbon">
-      <div className="flex items-stretch overflow-x-auto">
-        {kpis.map((k, i) => (
-          <div
-            key={k.label}
-            className={`flex min-w-[150px] flex-1 flex-col gap-0.5 px-4 py-3 ${
-              i > 0 ? "border-l border-white/10" : ""
-            }`}
-          >
-            <span className="text-[10px] font-medium uppercase tracking-wide text-mimsa-grayLight">
-              {k.label}
-            </span>
-            <span
-              className={`font-mono text-lg font-semibold leading-tight ${
-                k.tone === "green"
-                  ? "text-mimsa-green"
-                  : k.tone === "red"
-                  ? "text-alert-amber"
-                  : "text-white"
-              }`}
+    <div className="mb-4 overflow-hidden rounded-xl border border-mimsa-green/25 bg-mimsa-black shadow-sm">
+      <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-stretch lg:gap-5">
+        {/* Izquierda: banderas (mercados) */}
+        <div className="flex shrink-0 items-center gap-3 lg:border-r lg:border-white/10 lg:pr-5">
+          <FlagsBar />
+        </div>
+
+        {/* Centro: KPIs grandes y centrados */}
+        <div className="grid flex-1 grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
+          {kpis.map((k) => (
+            <div
+              key={k.label}
+              className="flex flex-col items-center justify-center text-center"
             >
-              {k.value}
-            </span>
-            {k.unit && (
-              <span className="text-[10px] text-mimsa-grayLight">{k.unit}</span>
-            )}
-          </div>
-        ))}
+              <span className="mb-1 text-[10px] font-medium uppercase tracking-wide text-mimsa-grayLight">
+                {k.label}
+              </span>
+              <span
+                className={`font-mono text-2xl font-bold leading-none ${
+                  k.tone === "green"
+                    ? "text-mimsa-green"
+                    : k.tone === "amber"
+                    ? "text-alert-amber"
+                    : "text-white"
+                }`}
+              >
+                {k.value}
+              </span>
+              {k.unit && (
+                <span className="mt-1 text-[10px] text-mimsa-grayLight">
+                  {k.unit}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Derecha: clima de Monterrey */}
+        <div className="flex shrink-0 items-center lg:border-l lg:border-white/10 lg:pl-5">
+          <WeatherWidget />
+        </div>
       </div>
     </div>
   );
