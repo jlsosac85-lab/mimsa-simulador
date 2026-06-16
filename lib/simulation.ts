@@ -164,7 +164,7 @@ export function defaultStations(): Station[] {
       hours: 5.5,
       x: 590,
       y: 95,
-      fill: "#94C11C",
+      fill: "#1C1C1A",
       handles: ["bisagra"],
     },
     {
@@ -183,7 +183,7 @@ export function defaultStations(): Station[] {
 
 export function defaultParams(): GlobalParams {
   return {
-    targetMarcos: 840,
+    targetMarcos: 990,
     rawMaterial: 0,
     workingDays: 20,
   };
