@@ -102,12 +102,13 @@ export function evaluate(
 
 // ============================================================
 // Configuracion estandar — base de operacion actual de MIMSA.
-//   Roladora        2 pers · 90/h  · 11 h   = 990  (cuello)
-//   Troquel Bisagra 1 pers · 240/h · 4.5 h  = 1,080
-//   Troquel Embut.  1 pers · 240/h · 4.5 h  = 1,080
-//   Remachadora     1 pers · 180/h · 5.5 h  = 990
-//   Pintura         4 pers · 120/h · 8.5 h  = 1,020
-//   Embolsado       2 pers · 100/h · 10 h   = 1,000
+// Linea balanceada: todas las estaciones a 990 marcos/turno.
+//   Roladora        2 pers · 90/h  · 11 h    = 990  (cuello)
+//   Troquel Bisagra 1 pers · 240/h · 4.125 h = 990
+//   Troquel Embut.  1 pers · 240/h · 4.125 h = 990
+//   Pintura         4 pers · 120/h · 8.25 h  = 990
+//   Remachadora     1 pers · 180/h · 5.5 h   = 990
+//   Embolsado       2 pers · 100/h · 9.9 h   = 990
 // ============================================================
 export function defaultStations(): Station[] {
   return [
@@ -127,7 +128,7 @@ export function defaultStations(): Station[] {
       name: "Troquel Bisagra",
       people: 1,
       ratePerHour: 240,
-      hours: 4.5,
+      hours: 4.125,
       x: 290,
       y: 100,
       fill: "#1C1C1A",
@@ -138,7 +139,7 @@ export function defaultStations(): Station[] {
       name: "Troquel Embutido",
       people: 1,
       ratePerHour: 240,
-      hours: 4.5,
+      hours: 4.125,
       x: 290,
       y: 260,
       fill: "#1C1C1A",
@@ -149,7 +150,7 @@ export function defaultStations(): Station[] {
       name: "Pintura",
       people: 4,
       ratePerHour: 120,
-      hours: 8.5,
+      hours: 8.25,
       x: 445,
       y: 180,
       fill: "#94C11C",
@@ -171,7 +172,7 @@ export function defaultStations(): Station[] {
       name: "Embolsado",
       people: 2,
       ratePerHour: 100,
-      hours: 10,
+      hours: 9.9,
       x: 705,
       y: 180,
       fill: "#94C11C",
