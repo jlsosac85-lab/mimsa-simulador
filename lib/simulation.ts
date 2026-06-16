@@ -1,7 +1,8 @@
 // ============================================================
 // Motor de simulacion de la linea de Marcos Metalicos - MIMSA
-// Toda la logica de capacidades y cuellos de botella vive aqui,
-// independiente de la interfaz.
+// Capacidad por estacion = marcos por hora (de la estacion) x horas.
+// Las personas son SOLO informativas (suman al KPI de personal),
+// no multiplican la capacidad.
 // ============================================================
 
 // Tipo de pieza que fluye por la linea.
@@ -11,10 +12,10 @@ export type PieceType = "cabezal" | "bisagra" | "embutido";
 export interface Station {
   id: string;
   name: string;
-  /** Personas asignadas a la estacion. */
+  /** Personas asignadas (solo informativo, suma al KPI de personal). */
   people: number;
-  /** Marcos-equivalentes que produce UNA persona en UNA hora. */
-  ratePerPersonHour: number;
+  /** Marcos por hora que produce la estacion. */
+  ratePerHour: number;
   /** Horas disponibles de la estacion en el turno. */
   hours: number;
   /** Posicion en el plano (coordenadas SVG). */
@@ -37,7 +38,7 @@ export interface GlobalParams {
 
 export interface StationResult {
   station: Station;
-  capacity: number; // marcos-equivalentes por turno
+  capacity: number; // marcos por turno
   isBottleneck: boolean;
   utilizationAtTarget: number; // % de uso si se persigue el objetivo
 }
@@ -52,9 +53,9 @@ export interface SimulationResult {
   stationResults: StationResult[];
 }
 
-// Capacidad de una estacion en marcos-equivalentes por turno.
+// Capacidad de una estacion en marcos por turno.
 export function stationCapacity(s: Station): number {
-  return s.people * s.ratePerPersonHour * s.hours;
+  return s.ratePerHour * s.hours;
 }
 
 // Evalua todo el sistema para un conjunto de estaciones y parametros.
@@ -65,7 +66,6 @@ export function evaluate(
   const caps = stations.map(stationCapacity);
   const systemCapacity = Math.min(...caps);
 
-  // La materia prima puede ser un limite adicional.
   const rawLimit = params.rawMaterial > 0 ? params.rawMaterial : Infinity;
   const effectiveCapacity = Math.min(systemCapacity, rawLimit);
 
@@ -99,42 +99,31 @@ export function evaluate(
 
 // ============================================================
 // Configuracion semilla — valores reales del Excel de MIMSA.
-// Cada capacidad coincide con la columna "Marco" del analisis:
-//   Roladora 855 · Troquel Cab 960 · Troquel Bis 960 ·
-//   Troquel Emb 960 · Remachadora 900 · Pintura 840 · Embolsado 900
+// El cabezal ya no pasa por troquel (estacion eliminada).
+//   Roladora 855 · Troquel Bisagra 960 · Troquel Embutido 960 ·
+//   Remachadora 900 · Pintura 840 (cuello) · Embolsado 900
 // ============================================================
 export function defaultStations(): Station[] {
   return [
     {
       id: "roladora",
       name: "Roladora",
-      people: 1,
-      ratePerPersonHour: 90,
+      people: 2,
+      ratePerHour: 90,
       hours: 9.5,
-      x: 110,
+      x: 130,
       y: 180,
       fill: "#94C11C",
       handles: ["cabezal", "bisagra", "embutido"],
     },
     {
-      id: "troquel-cabezal",
-      name: "Troquel Cabezal",
-      people: 2,
-      ratePerPersonHour: 60,
-      hours: 8,
-      x: 290,
-      y: 80,
-      fill: "#1C1C1A",
-      handles: ["cabezal"],
-    },
-    {
       id: "troquel-bisagra",
       name: "Troquel Bisagra",
       people: 1,
-      ratePerPersonHour: 240,
+      ratePerHour: 240,
       hours: 4,
-      x: 290,
-      y: 180,
+      x: 320,
+      y: 105,
       fill: "#1C1C1A",
       handles: ["bisagra"],
     },
@@ -142,10 +131,10 @@ export function defaultStations(): Station[] {
       id: "troquel-embutido",
       name: "Troquel Embutido",
       people: 1,
-      ratePerPersonHour: 120,
+      ratePerHour: 120,
       hours: 8,
-      x: 290,
-      y: 280,
+      x: 320,
+      y: 255,
       fill: "#1C1C1A",
       handles: ["embutido"],
     },
@@ -153,10 +142,10 @@ export function defaultStations(): Station[] {
       id: "remachadora",
       name: "Remachadora",
       people: 1,
-      ratePerPersonHour: 180,
+      ratePerHour: 180,
       hours: 5,
-      x: 430,
-      y: 180,
+      x: 470,
+      y: 105,
       fill: "#94C11C",
       handles: ["bisagra"],
     },
@@ -164,9 +153,9 @@ export function defaultStations(): Station[] {
       id: "pintura",
       name: "Pintura",
       people: 3,
-      ratePerPersonHour: 40,
+      ratePerHour: 120,
       hours: 7,
-      x: 560,
+      x: 600,
       y: 180,
       fill: "#94C11C",
       handles: ["cabezal", "bisagra", "embutido"],
@@ -175,9 +164,9 @@ export function defaultStations(): Station[] {
       id: "embolsado",
       name: "Embolsado",
       people: 2,
-      ratePerPersonHour: 50,
+      ratePerHour: 100,
       hours: 9,
-      x: 680,
+      x: 710,
       y: 180,
       fill: "#94C11C",
       handles: ["cabezal", "bisagra", "embutido"],
@@ -194,11 +183,30 @@ export function defaultParams(): GlobalParams {
 }
 
 // Rutas de cada tipo de pieza (secuencia de estaciones por id).
+// El cabezal ya NO pasa por troquel: va de Roladora directo a Pintura.
 export const ROUTES: Record<PieceType, string[]> = {
-  cabezal: ["roladora", "troquel-cabezal", "pintura", "embolsado"],
+  cabezal: ["roladora", "pintura", "embolsado"],
   bisagra: ["roladora", "troquel-bisagra", "remachadora", "pintura", "embolsado"],
   embutido: ["roladora", "troquel-embutido", "pintura", "embolsado"],
 };
+
+// Deriva las conexiones (flechas) del flujo a partir de las rutas.
+// Devuelve pares unicos { from, to } de estaciones consecutivas.
+export function deriveEdges(): { from: string; to: string }[] {
+  const seen = new Set<string>();
+  const edges: { from: string; to: string }[] = [];
+  (Object.keys(ROUTES) as PieceType[]).forEach((type) => {
+    const route = ROUTES[type];
+    for (let i = 0; i < route.length - 1; i++) {
+      const key = `${route[i]}->${route[i + 1]}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        edges.push({ from: route[i], to: route[i + 1] });
+      }
+    }
+  });
+  return edges;
+}
 
 // Colores por tipo de pieza (para la animacion).
 export const PIECE_COLORS: Record<PieceType, string> = {
