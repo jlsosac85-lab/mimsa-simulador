@@ -21,6 +21,7 @@ export function Simulator() {
   const [params, setParams] = useState<GlobalParams>(defaultParams());
   const [running, setRunning] = useState(false);
   const [speed, setSpeed] = useState(3);
+  const [startMode, setStartMode] = useState<"carga" | "transitorio">("carga");
   const [live, setLive] = useState({ hour: 0, completed: 0, wip: 0 });
 
   const result = useMemo(() => evaluate(stations, params), [stations, params]);
@@ -193,6 +194,20 @@ export function Simulator() {
         >
           {running ? "❚❚ Pausa" : "▶ Iniciar simulación"}
         </button>
+        <label className="flex items-center gap-1.5">
+          <span className="text-[11px] text-mimsa-gray">Arranque</span>
+          <select
+            value={startMode}
+            onChange={(e) => {
+              setStartMode(e.target.value as "carga" | "transitorio");
+              resetSim();
+            }}
+            className="rounded-md border border-mimsa-line bg-white px-2 py-2 text-sm font-medium text-mimsa-black outline-none focus:border-mimsa-green"
+          >
+            <option value="carga">Carga 100% por estación</option>
+            <option value="transitorio">Con transitorio (en cadena)</option>
+          </select>
+        </label>
         <button
           onClick={resetSim}
           className="inline-flex items-center gap-2 rounded-md border border-mimsa-line bg-white px-4 py-2 text-sm font-medium text-mimsa-black transition-opacity hover:opacity-90"
@@ -232,6 +247,7 @@ export function Simulator() {
           target={params.targetMarcos}
           running={running}
           speed={speed}
+          mode={startMode}
           onTick={setLive}
         />
       </section>

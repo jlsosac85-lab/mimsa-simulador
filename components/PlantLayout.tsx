@@ -10,23 +10,30 @@ import {
   deriveEdges,
 } from "@/lib/simulation";
 
+type StartMode = "carga" | "transitorio";
+
 interface Props {
   stations: Station[];
   target: number;
   running: boolean;
   speed: number;
+  mode: StartMode;
   onTick: (state: { hour: number; completed: number; wip: number }) => void;
 }
 
 interface Piece {
   id: number;
   type: PieceType;
-  stage: number;
+  stationId: string; // modo carga
+  slot: number; // modo carga
+  total: number; // modo carga
+  stage: number; // modo transitorio (indice en la ruta)
   x: number;
   y: number;
   t: number;
-  state: "travel" | "queue" | "serve" | "toPallet";
+  state: "queue" | "serve" | "exit" | "toPallet" | "travel";
   serviceTime: number;
+  exitT: number;
   el: SVGCircleElement;
 }
 
@@ -37,14 +44,13 @@ interface StatBucket {
 }
 
 const TURN_HOURS = 11;
-const BATCH = 90; // cada pieza visual representa 90 unidades
-const PALLET_SIZE = 330; // unidades terminadas por tarima llena
+const BATCH = 90;
+const PALLET_SIZE = 330;
 
-// ---- Geometria de la zona de tarimas (debajo del flujo) ----
-const PALLET_TOP = 360; // y donde inicia la zona de tarimas
-const PROD_MAX_H = 46; // altura maxima del producto apilado
-const ROW_H = 104; // alto de cada fila de tarimas
-const PER_ROW = 8; // tarimas por fila
+const PALLET_TOP = 360;
+const PROD_MAX_H = 46;
+const ROW_H = 104;
+const PER_ROW = 8;
 
 function palletCount(target: number): number {
   return Math.max(1, Math.ceil(target / PALLET_SIZE));
@@ -60,7 +66,7 @@ function palletGeom(i: number, n: number) {
   const row = Math.floor(i / per);
   const x = startX + col * gap;
   const topY = PALLET_TOP + row * ROW_H;
-  const baseY = topY + PROD_MAX_H; // donde se apoya el producto (cara superior de la tarima)
+  const baseY = topY + PROD_MAX_H;
   return { x, w, topY, baseY };
 }
 
@@ -69,11 +75,24 @@ function viewBoxHeight(target: number): number {
   return PALLET_TOP + rows * ROW_H + 14;
 }
 
+// Pila de material (modo carga) a la izquierda de la estacion.
+function queuePos(s: Station, slot: number, total: number) {
+  const COLS = 3;
+  const rows = Math.max(1, Math.ceil(total / COLS));
+  const col = slot % COLS;
+  const row = Math.floor(slot / COLS);
+  const x = s.x - 42 - col * 6;
+  const y0 = s.y - (rows * 6) / 2 + 3;
+  const y = y0 + row * 6;
+  return { x, y };
+}
+
 export function PlantLayout({
   stations,
   target,
   running,
   speed,
+  mode,
   onTick,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -83,6 +102,7 @@ export function PlantLayout({
   const targetRef = useRef(target);
   const speedRef = useRef(speed);
   const runningRef = useRef(running);
+  const modeRef = useRef(mode);
   const nPalletsRef = useRef(palletCount(target));
 
   const simRef = useRef({
@@ -100,6 +120,7 @@ export function PlantLayout({
   stationsRef.current = stations;
   targetRef.current = target;
   speedRef.current = speed;
+  modeRef.current = mode;
   nPalletsRef.current = palletCount(target);
 
   function resetStats() {
@@ -119,17 +140,22 @@ export function PlantLayout({
     const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     c.setAttribute("r", "4");
     c.setAttribute("fill", PIECE_COLORS[type]);
-    c.setAttribute("stroke-width", "0.6");
+    c.setAttribute("stroke", "#FFFFFF");
+    c.setAttribute("stroke-width", "0.7");
     layerRef.current?.appendChild(c);
     return {
       id: ++sim.pieceId,
       type,
+      stationId: "",
+      slot: 0,
+      total: 1,
       stage: 0,
-      x: 40,
-      y: 180,
+      x: 0,
+      y: 0,
       t: 0,
-      state: "travel",
+      state: "queue",
       serviceTime: 0,
+      exitT: 0,
       el: c,
     };
   }
@@ -149,20 +175,127 @@ export function PlantLayout({
     return stationsRef.current.find((s) => s.id === id);
   }
 
-  function step(dt: number) {
+  function clearAll() {
+    const sim = simRef.current;
+    sim.pieces.forEach(removePiece);
+    sim.pieces = [];
+    sim.pieceId = 0;
+    sim.simTime = 0;
+    sim.completed = 0;
+    sim.nextArrival = 0;
+    sim.buffer = { bisagra: 0, embutido: 0 };
+    resetStats();
+  }
+
+  // MODO CARGA: cada estacion arranca con el 100% de su material.
+  function loadStations() {
+    clearAll();
+    const sim = simRef.current;
+    const nB = Math.max(1, Math.round(targetRef.current / BATCH));
+    stationsRef.current.forEach((s) => {
+      const total = nB * s.handles.length;
+      let slot = 0;
+      for (let k = 0; k < nB; k++) {
+        s.handles.forEach((type) => {
+          const p = makePiece(type);
+          p.stationId = s.id;
+          p.slot = slot++;
+          p.total = total;
+          p.state = "queue";
+          const pos = queuePos(s, p.slot, total);
+          setPos(p, pos.x, pos.y);
+          sim.stats[s.id].queue.push(p);
+          sim.pieces.push(p);
+        });
+      }
+    });
+    paint();
+  }
+
+  // Prepara el estado segun el modo (carga = material listo; transitorio = vacio).
+  function prepare() {
+    if (modeRef.current === "carga") {
+      loadStations();
+    } else {
+      clearAll();
+      paint();
+    }
+  }
+
+  // ---------- MODO CARGA ----------
+  function stepCarga(dt: number) {
+    const sim = simRef.current;
+    sim.simTime += dt;
+    const nPal = nPalletsRef.current;
+
+    stationsRef.current.forEach((s) => {
+      const st = sim.stats[s.id];
+      if (!st) return;
+      if (st.serving) st.busy += dt;
+      if (!st.serving && st.queue.length > 0) {
+        const p = st.queue.shift()!;
+        st.serving = p;
+        p.state = "serve";
+        p.t = 0;
+        const effRate = s.ratePerHour * (s.handles.length || 1);
+        p.serviceTime = effRate > 0 ? BATCH / effRate : 999;
+      }
+    });
+
+    for (let i = sim.pieces.length - 1; i >= 0; i--) {
+      const p = sim.pieces[i];
+      const s = stationById(p.stationId);
+      if (!s) continue;
+      const st = sim.stats[p.stationId];
+      if (!st) continue;
+
+      if (p.state === "queue") {
+        const pos = queuePos(s, p.slot, p.total);
+        setPos(p, pos.x, pos.y);
+      } else if (p.state === "serve") {
+        setPos(p, s.x, s.y);
+        p.t += dt;
+        if (p.t >= p.serviceTime) {
+          st.serving = null;
+          if (s.id === "embolsado") p.state = "toPallet";
+          else {
+            p.state = "exit";
+            p.exitT = 0;
+          }
+        }
+      } else if (p.state === "exit") {
+        p.exitT += dt;
+        setPos(p, p.x + 260 * dt, p.y);
+        p.el.setAttribute("opacity", String(Math.max(0, 1 - p.exitT / 0.45)));
+        if (p.exitT > 0.45) {
+          removePiece(p);
+          sim.pieces.splice(i, 1);
+        }
+      } else if (p.state === "toPallet") {
+        travelToPallet(p, i, nPal, dt);
+      }
+    }
+  }
+
+  // ---------- MODO TRANSITORIO ----------
+  function stepTransitorio(dt: number) {
     const sim = simRef.current;
     sim.simTime += dt;
     const t = sim.simTime;
     const tgt = targetRef.current;
     const nPal = nPalletsRef.current;
 
-    // Llegadas (cada lote son los 2 largueros de un grupo de 90 marcos)
+    // Llegadas graduales por la entrada
     const arrivalsPerHour = tgt / TURN_HOURS / BATCH;
     const arrivalInterval = arrivalsPerHour > 0 ? 1 / arrivalsPerHour : Infinity;
     while (t >= sim.nextArrival && t < TURN_HOURS) {
-      (["bisagra", "embutido"] as PieceType[]).forEach((type, i) => {
+      (["bisagra", "embutido"] as PieceType[]).forEach((type, idx) => {
         const p = makePiece(type);
-        p.y = 180 + (i === 0 ? -5 : 5);
+        p.state = "travel";
+        p.stage = 0;
+        p.x = 40;
+        p.y = 180 + (idx === 0 ? -5 : 5);
+        setPos(p, p.x, p.y);
         sim.pieces.push(p);
       });
       sim.nextArrival += arrivalInterval;
@@ -177,32 +310,9 @@ export function PlantLayout({
       const p = sim.pieces[i];
       const route = ROUTES[p.type];
 
-      // Salio del ultimo proceso: viaja a la tarima que se esta llenando
       if (p.stage >= route.length || p.state === "toPallet") {
         p.state = "toPallet";
-        const activeIdx = Math.min(
-          nPal - 1,
-          Math.floor(sim.completed / PALLET_SIZE)
-        );
-        const g = palletGeom(activeIdx, nPal);
-        const tx = g.x + g.w / 2 + (p.type === "bisagra" ? -6 : 6);
-        const ty = g.baseY - 6;
-        const dx = tx - p.x;
-        const dy = ty - p.y;
-        const dist = Math.hypot(dx, dy) || 1;
-        const sp = 550 * dt;
-        if (dist > 5) {
-          setPos(p, p.x + (dx / dist) * Math.min(sp, dist), p.y + (dy / dist) * Math.min(sp, dist));
-        } else {
-          sim.buffer[p.type]++;
-          while (sim.buffer.bisagra > 0 && sim.buffer.embutido > 0) {
-            sim.buffer.bisagra--;
-            sim.buffer.embutido--;
-            sim.completed += BATCH;
-          }
-          removePiece(p);
-          sim.pieces.splice(i, 1);
-        }
+        travelToPallet(p, i, nPal, dt);
         continue;
       }
 
@@ -232,9 +342,8 @@ export function PlantLayout({
           st.serving = p;
           p.state = "serve";
           p.t = 0;
-          // La capacidad (marcos/hora) se reparte entre los tipos que procesa.
-          const effectiveRate = s.ratePerHour * (s.handles.length || 1);
-          p.serviceTime = effectiveRate > 0 ? BATCH / effectiveRate : 999;
+          const effRate = s.ratePerHour * (s.handles.length || 1);
+          p.serviceTime = effRate > 0 ? BATCH / effRate : 999;
         }
       } else if (p.state === "serve") {
         const offset = p.type === "embutido" ? 3 : -3;
@@ -250,13 +359,39 @@ export function PlantLayout({
     }
   }
 
+  // Viaje a la tarima activa (comun a ambos modos)
+  function travelToPallet(p: Piece, i: number, nPal: number, dt: number) {
+    const sim = simRef.current;
+    const activeIdx = Math.min(nPal - 1, Math.floor(sim.completed / PALLET_SIZE));
+    const g = palletGeom(activeIdx, nPal);
+    const tx = g.x + g.w / 2 + (p.type === "bisagra" ? -6 : 6);
+    const ty = g.baseY - 6;
+    const dx = tx - p.x;
+    const dy = ty - p.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const sp = 550 * dt;
+    if (dist > 5) {
+      setPos(p, p.x + (dx / dist) * Math.min(sp, dist), p.y + (dy / dist) * Math.min(sp, dist));
+    } else {
+      sim.buffer[p.type]++;
+      while (sim.buffer.bisagra > 0 && sim.buffer.embutido > 0) {
+        sim.buffer.bisagra--;
+        sim.buffer.embutido--;
+        sim.completed += BATCH;
+      }
+      removePiece(p);
+      sim.pieces.splice(i, 1);
+    }
+  }
+
   function paint() {
     const sim = simRef.current;
     const svg = svgRef.current;
     if (!svg) return;
+    const isCarga = modeRef.current === "carga";
 
-    let maxQueue = -1;
     let bnId: string | null = null;
+    let bnVal = -1;
 
     stationsRef.current.forEach((s) => {
       const st = sim.stats[s.id];
@@ -264,20 +399,24 @@ export function PlantLayout({
       const elapsed = Math.min(sim.simTime, TURN_HOURS);
       const util = elapsed > 0 ? (st.busy / elapsed) * 100 : 0;
       const utilC = Math.min(100, Math.max(0, util));
+      const pend = st.queue.length + (st.serving ? 1 : 0);
 
       const qEl = svg.querySelector(`#q-${s.id}`);
       const uEl = svg.querySelector(`#u-${s.id}`);
-      if (qEl) qEl.textContent = String(st.queue.length);
+      if (qEl) qEl.textContent = String(pend);
       if (uEl) uEl.textContent = `${Math.round(utilC)}%`;
 
-      if (st.queue.length > maxQueue && sim.simTime > 1) {
-        maxQueue = st.queue.length;
+      // cuello: en carga, el de mayor pendiente; en transitorio, el de mayor cola
+      const metric = isCarga ? pend : st.queue.length;
+      if (metric > bnVal && sim.simTime > 0.2) {
+        bnVal = metric;
         bnId = s.id;
       }
 
       const rect = svg.querySelector(`#rect-${s.id}`) as SVGRectElement | null;
-      if (rect && sim.simTime > 1) {
-        if (utilC > 90 && st.queue.length > 2) {
+      if (rect && sim.simTime > 0.2) {
+        const alert = isCarga ? utilC > 95 && pend > 1 : utilC > 90 && st.queue.length > 2;
+        if (alert) {
           rect.setAttribute("stroke", "#A32D2D");
           rect.setAttribute("stroke-width", "2.5");
         } else if (utilC > 80) {
@@ -290,7 +429,6 @@ export function PlantLayout({
       }
     });
 
-    // ---- Tarimas: llenado segun unidades terminadas ----
     const nPal = nPalletsRef.current;
     let fullPallets = 0;
     for (let i = 0; i < nPal; i++) {
@@ -316,8 +454,9 @@ export function PlantLayout({
 
     const badge = svg.querySelector("#bn-badge") as SVGGElement | null;
     if (badge) {
-      if (bnId && maxQueue > 2 && sim.simTime > 1) {
-        const s = stationById(bnId);
+      const show = bnId && bnVal > (isCarga ? 0 : 2) && sim.simTime > 0.2;
+      if (show) {
+        const s = stationById(bnId!);
         if (s) {
           badge.style.display = "";
           const r = badge.querySelector("rect");
@@ -332,11 +471,7 @@ export function PlantLayout({
       }
     }
 
-    onTick({
-      hour: sim.simTime,
-      completed: sim.completed,
-      wip: sim.pieces.length,
-    });
+    onTick({ hour: sim.simTime, completed: sim.completed, wip: sim.pieces.length });
   }
 
   function loop(ts: number) {
@@ -347,9 +482,17 @@ export function PlantLayout({
     sim.lastTick = ts;
     const simDt = real * speedRef.current * 0.25;
     const sub = Math.max(1, Math.ceil(simDt / 0.05));
-    for (let i = 0; i < sub; i++) step(simDt / sub);
+    for (let i = 0; i < sub; i++) {
+      if (modeRef.current === "carga") stepCarga(simDt / sub);
+      else stepTransitorio(simDt / sub);
+    }
     paint();
-    if (sim.simTime >= TURN_HOURS && sim.pieces.length === 0) {
+
+    const done =
+      modeRef.current === "carga"
+        ? sim.pieces.length === 0 && sim.simTime > 0.1
+        : sim.simTime >= TURN_HOURS && sim.pieces.length === 0;
+    if (done) {
       runningRef.current = false;
     } else {
       sim.rafId = requestAnimationFrame(loop);
@@ -360,6 +503,7 @@ export function PlantLayout({
     runningRef.current = running;
     const sim = simRef.current;
     if (running) {
+      if (modeRef.current === "carga" && sim.pieces.length === 0) loadStations();
       sim.lastTick = 0;
       sim.rafId = requestAnimationFrame(loop);
     } else if (sim.rafId) {
@@ -376,15 +520,8 @@ export function PlantLayout({
       const sim = simRef.current;
       runningRef.current = false;
       if (sim.rafId) cancelAnimationFrame(sim.rafId);
-      sim.pieces.forEach(removePiece);
-      sim.pieces = [];
-      sim.pieceId = 0;
-      sim.simTime = 0;
-      sim.completed = 0;
-      sim.nextArrival = 0;
-      sim.buffer = { bisagra: 0, embutido: 0 };
       sim.lastTick = 0;
-      resetStats();
+      prepare();
       stationsRef.current.forEach((s) => {
         const rect = svgRef.current?.querySelector(
           `#rect-${s.id}`
@@ -394,10 +531,15 @@ export function PlantLayout({
           rect.setAttribute("stroke-width", "1.5");
         }
       });
-      paint();
     }
     window.addEventListener("mimsa-reset", onReset);
     return () => window.removeEventListener("mimsa-reset", onReset);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Preparar al montar segun el modo inicial.
+  useEffect(() => {
+    prepare();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -406,27 +548,13 @@ export function PlantLayout({
 
   return (
     <div className="rounded-lg border border-mimsa-line bg-mimsa-bg p-2">
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 760 ${vbH}`}
-        className="block h-auto w-full"
-        xmlns="http://www.w3.org/2000/svg"
-      >
+      <svg ref={svgRef} viewBox={`0 0 760 ${vbH}`} className="block h-auto w-full" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <marker
-            id="arrow"
-            viewBox="0 0 10 10"
-            refX="9"
-            refY="5"
-            markerWidth="6"
-            markerHeight="6"
-            orient="auto"
-          >
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
             <path d="M0,0 L10,5 L0,10 z" fill="#888780" />
           </marker>
         </defs>
 
-        {/* Conexiones de flujo (derivadas de las rutas) */}
         <g stroke="#888780" strokeWidth="1.5" fill="none">
           <path d="M 60 180 L 95 180" markerEnd="url(#arrow)" />
           {deriveEdges().map(({ from, to }) => {
@@ -443,7 +571,6 @@ export function PlantLayout({
             const d = `M ${x1} ${y1} C ${x1 + c} ${y1}, ${x2 - c} ${y2}, ${x2} ${y2}`;
             return <path key={`${from}-${to}`} d={d} markerEnd="url(#arrow)" />;
           })}
-          {/* Salida de embolsado hacia las tarimas */}
           <path
             d={`M 705 205 C 705 ${PALLET_TOP - 30}, 380 ${PALLET_TOP - 30}, 380 ${PALLET_TOP - 6}`}
             strokeDasharray="4 3"
@@ -451,30 +578,16 @@ export function PlantLayout({
           />
         </g>
 
-        {/* Entrada */}
         <rect x="20" y="160" width="40" height="40" rx="4" fill="#D3D1C7" stroke="#888780" />
-        <text x="40" y="218" textAnchor="middle" fontSize="10" fill="#5F5E5A">
-          Entrada
-        </text>
+        <text x="40" y="218" textAnchor="middle" fontSize="10" fill="#5F5E5A">Entrada</text>
 
-        {/* Estaciones */}
         {stations.map((s) => {
           const isDark = s.fill === "#1C1C1A";
           const w = 70;
           const h = 50;
           return (
             <g key={s.id}>
-              <rect
-                id={`rect-${s.id}`}
-                x={s.x - w / 2}
-                y={s.y - h / 2}
-                width={w}
-                height={h}
-                rx="4"
-                fill={s.fill}
-                stroke={isDark ? "#94C11C" : "#1C1C1A"}
-                strokeWidth="1.5"
-              />
+              <rect id={`rect-${s.id}`} x={s.x - w / 2} y={s.y - h / 2} width={w} height={h} rx="4" fill={s.fill} stroke={isDark ? "#94C11C" : "#1C1C1A"} strokeWidth="1.5" />
               <text x={s.x} y={s.y - 2} textAnchor="middle" fontSize="9" fontWeight="600" fill={isDark ? "white" : "#1C1C1A"}>
                 {s.name.length > 12 ? s.name.slice(0, 11) + "…" : s.name}
               </text>
@@ -482,7 +595,7 @@ export function PlantLayout({
                 {Math.round(stationCapacity(s))}/t
               </text>
               <text x={s.x} y={s.y + h / 2 + 14} textAnchor="middle" fontSize="9" fill="#5F5E5A">
-                Cola:{" "}
+                Pend:{" "}
                 <tspan id={`q-${s.id}`} fontWeight="600" fill="#1C1C1A">0</tspan> ·{" "}
                 <tspan id={`u-${s.id}`} fontWeight="600" fill="#1C1C1A">0%</tspan>
               </text>
@@ -490,79 +603,38 @@ export function PlantLayout({
           );
         })}
 
-        {/* Capa de piezas animadas */}
         <g ref={layerRef} />
 
-        {/* Badge de cuello de botella */}
         <g id="bn-badge" style={{ display: "none" }}>
           <rect x="0" y="0" width="120" height="20" rx="10" fill="#A32D2D" />
-          <text x="60" y="13" textAnchor="middle" fontSize="10" fontWeight="600" fill="white">
-            CUELLO DE BOTELLA
-          </text>
+          <text x="60" y="13" textAnchor="middle" fontSize="10" fontWeight="600" fill="white">CUELLO DE BOTELLA</text>
         </g>
 
-        {/* Leyenda del flujo */}
-        <circle cx="40" cy="312" r="4" fill="#1C1C1A" />
+        <circle cx="40" cy="312" r="4" fill="#1C1C1A" stroke="#FFFFFF" strokeWidth="0.7" />
         <text x="50" y="315" fontSize="9" fill="#5F5E5A">Larguero bisagra</text>
-        <circle cx="150" cy="312" r="4" fill="#888780" />
+        <circle cx="150" cy="312" r="4" fill="#888780" stroke="#FFFFFF" strokeWidth="0.7" />
         <text x="160" y="315" fontSize="9" fill="#5F5E5A">Larguero embutido</text>
         <text x="270" y="315" fontSize="9" fill="#5F5E5A">Cada bolita = 90 unidades</text>
 
-        {/* ---- Zona de tarimas (producto terminado) ---- */}
-        <text x="20" y={PALLET_TOP - 12} fontSize="11" fontWeight="700" fill="#1C1C1A">
-          PRODUCTO TERMINADO
-        </text>
+        <text x="20" y={PALLET_TOP - 12} fontSize="11" fontWeight="700" fill="#1C1C1A">PRODUCTO TERMINADO</text>
         <text id="pallet-summary" x="200" y={PALLET_TOP - 12} fontSize="10" fill="#5F5E5A">
           Tarimas llenas: 0/{nPal} · 0 marcos terminados
         </text>
 
         {Array.from({ length: nPal }).map((_, i) => {
           const g = palletGeom(i, nPal);
-          const plankY = g.baseY; // cara superior de la tarima
+          const plankY = g.baseY;
           return (
             <g key={`pallet-${i}`}>
-              {/* hueco/marco de referencia del producto (330) */}
-              <rect
-                x={g.x + 3}
-                y={g.topY}
-                width={g.w - 6}
-                height={PROD_MAX_H}
-                rx="2"
-                fill="none"
-                stroke="#C9C7BD"
-                strokeWidth="1"
-                strokeDasharray="3 3"
-              />
-              {/* producto apilado (se actualiza) */}
-              <rect
-                id={`pallet-prod-${i}`}
-                x={g.x + 4}
-                y={g.baseY}
-                width={g.w - 8}
-                height={0}
-                rx="1.5"
-                fill="#B5D85A"
-              />
-              {/* tarima de madera */}
+              <rect x={g.x + 3} y={g.topY} width={g.w - 6} height={PROD_MAX_H} rx="2" fill="none" stroke="#C9C7BD" strokeWidth="1" strokeDasharray="3 3" />
+              <rect id={`pallet-prod-${i}`} x={g.x + 4} y={g.baseY} width={g.w - 8} height={0} rx="1.5" fill="#B5D85A" />
               <rect x={g.x} y={plankY} width={g.w} height="9" rx="1" fill="#8C5A2B" />
               <line x1={g.x + g.w * 0.33} y1={plankY} x2={g.x + g.w * 0.33} y2={plankY + 9} stroke="#6E4420" strokeWidth="1" />
               <line x1={g.x + g.w * 0.66} y1={plankY} x2={g.x + g.w * 0.66} y2={plankY + 9} stroke="#6E4420" strokeWidth="1" />
               <rect x={g.x + 4} y={plankY + 9} width="8" height="6" fill="#6E4420" />
               <rect x={g.x + g.w - 12} y={plankY + 9} width="8" height="6" fill="#6E4420" />
-              {/* etiquetas */}
-              <text x={g.x + g.w / 2} y={plankY + 27} textAnchor="middle" fontSize="9" fontWeight="600" fill="#1C1C1A">
-                Tarima {i + 1}
-              </text>
-              <text
-                id={`pallet-lbl-${i}`}
-                x={g.x + g.w / 2}
-                y={plankY + 38}
-                textAnchor="middle"
-                fontSize="9"
-                fill="#5F5E5A"
-              >
-                0/{PALLET_SIZE}
-              </text>
+              <text x={g.x + g.w / 2} y={plankY + 27} textAnchor="middle" fontSize="9" fontWeight="600" fill="#1C1C1A">Tarima {i + 1}</text>
+              <text id={`pallet-lbl-${i}`} x={g.x + g.w / 2} y={plankY + 38} textAnchor="middle" fontSize="9" fill="#5F5E5A">0/{PALLET_SIZE}</text>
             </g>
           );
         })}
