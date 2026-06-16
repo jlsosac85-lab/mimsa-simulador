@@ -47,8 +47,8 @@ export function KpiStrip({ stations, params, result }: Props) {
     },
     {
       label: "Piezas por marco",
-      value: "3",
-      unit: "1 cabezal + 2 largueros",
+      value: "2",
+      unit: "bisagra + embutido",
     },
   ];
 

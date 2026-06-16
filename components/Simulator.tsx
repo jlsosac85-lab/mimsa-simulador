@@ -12,6 +12,7 @@ import { MimsaLogo } from "./MimsaLogo";
 import { KpiStrip } from "./KpiStrip";
 import { StationCard } from "./StationCard";
 import { PlantLayout } from "./PlantLayout";
+import { StaffingPanel } from "./StaffingPanel";
 import { ResultsPanel } from "./ResultsPanel";
 
 type Preset = "actual" | "noche" | "embutido" | "max";
@@ -250,6 +251,11 @@ export function Simulator() {
           mode={startMode}
           onTick={setLive}
         />
+      </section>
+
+      {/* Comparativo de plantilla */}
+      <section className="mb-4">
+        <StaffingPanel stations={stations} />
       </section>
 
       {/* Resultados */}
