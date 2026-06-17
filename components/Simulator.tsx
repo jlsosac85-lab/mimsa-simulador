@@ -356,6 +356,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
           line={effLine}
           stations={stations}
           target={params.targetMarcos}
+          systemCapacity={result.effectiveCapacity}
           running={running}
           speed={speed}
           mode={startMode}
