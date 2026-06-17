@@ -25,6 +25,9 @@ export interface Station {
   fill: string;
   /** Que tipos de pieza pasan por esta estacion. */
   handles: PieceType[];
+  /** Fraccion del flujo total que procesa esta estacion (1 = todo el flujo;
+   *  0.5 = estacion en paralelo que recibe la mitad, p.ej. Mesa 1 / Mesa 2). */
+  flowShare?: number;
 }
 
 export interface GlobalParams {
@@ -63,6 +66,14 @@ export interface ProductionLine {
   makeStations: () => Station[];
   makeParams: () => GlobalParams;
   stdProductivity: Record<string, number>;
+  /** "and" = el producto requiere 1 de cada tipo (ensamble, p.ej. Marcos).
+   *  "or"  = cada pieza de cualquier tipo es un producto terminado (vias
+   *           paralelas 50/50, p.ej. Panel y Fibrex). */
+  assembly: "and" | "or";
+  /** Unidades que representa cada bolita. */
+  ballUnits: number;
+  /** Unidades por tarima de producto terminado. */
+  palletSize: number;
 }
 
 export function stationCapacity(s: Station): number {
@@ -71,13 +82,20 @@ export function stationCapacity(s: Station): number {
 
 export function evaluate(stations: Station[], params: GlobalParams): SimulationResult {
   const caps = stations.map(stationCapacity);
-  const systemCapacity = caps.length ? Math.min(...caps) : 0;
+  // Capacidad efectiva de cada estacion = cuanto target del sistema soporta.
+  // Una estacion en paralelo (flowShare 0.5) que produce 200 sostiene 400 del
+  // sistema, porque solo recibe la mitad del flujo.
+  const share = stations.map((s) => (s.flowShare && s.flowShare > 0 ? s.flowShare : 1));
+  const effCaps = caps.map((c, i) => c / share[i]);
+
+  const systemCapacity = effCaps.length ? Math.min(...effCaps) : 0;
   const rawLimit = params.rawMaterial > 0 ? params.rawMaterial : Infinity;
   const effectiveCapacity = Math.min(systemCapacity, rawLimit);
 
+  // El cuello de botella es la estacion con menor capacidad efectiva.
   let bottleneckIdx = 0;
-  for (let i = 1; i < caps.length; i++) {
-    if (caps[i] < caps[bottleneckIdx]) bottleneckIdx = i;
+  for (let i = 1; i < effCaps.length; i++) {
+    if (effCaps[i] < effCaps[bottleneckIdx]) bottleneckIdx = i;
   }
   const bottleneck = stations[bottleneckIdx];
 
@@ -88,7 +106,8 @@ export function evaluate(stations: Station[], params: GlobalParams): SimulationR
     station: s,
     capacity: caps[i],
     isBottleneck: i === bottleneckIdx,
-    utilizationAtTarget: caps[i] > 0 ? (params.targetMarcos / caps[i]) * 100 : 0,
+    // Utilizacion = demanda (target x flowShare) / capacidad de la estacion.
+    utilizationAtTarget: caps[i] > 0 ? ((params.targetMarcos * share[i]) / caps[i]) * 100 : 0,
   }));
 
   return {
@@ -142,6 +161,9 @@ interface LineConfig {
   routes: Record<string, string[]>;
   stations: Station[];
   params: GlobalParams;
+  assembly: "and" | "or";
+  ballUnits: number;
+  palletSize: number;
 }
 
 function buildLine(cfg: LineConfig): ProductionLine {
@@ -159,9 +181,13 @@ function buildLine(cfg: LineConfig): ProductionLine {
     pieceTypes: cfg.pieceTypes,
     pieceColors: cfg.pieceColors,
     routes: cfg.routes,
-    makeStations: () => base.map((s) => ({ ...s, handles: [...s.handles] })),
+    makeStations: () =>
+      base.map((s) => ({ ...s, handles: [...s.handles] })),
     makeParams: () => ({ ...cfg.params }),
     stdProductivity: std,
+    assembly: cfg.assembly,
+    ballUnits: cfg.ballUnits,
+    palletSize: cfg.palletSize,
   };
 }
 
@@ -185,11 +211,108 @@ const MARCOS_COLORS: Record<string, string> = {
   embutido: "#888780",
 };
 
-// --- LINEAS DE PANEL Y FIBREX ---
-// Por ahora copian la estructura de Marcos Metalicos (placeholder).
-// El detalle de estaciones y parametros se definira en la siguiente fase.
-function cloneStations(src: Station[]): Station[] {
-  return src.map((s) => ({ ...s, handles: [...s.handles] }));
+// --- LINEA DE PANEL (datos reales) ---
+// Turno de 11 h. Capacidades de la tabla de PANEL convertidas a piezas/hora.
+// Flujo: Corte Madera -> Guillotina -> Despunte y Rolado -> Doblez, y ahi se
+// divide 50/50: Mesa Armado 1 -> Prensa 1  y  Mesa Armado 2 -> Prensa 2,
+// ambas alimentan las tarimas (50 piezas c/u). Cada bolita = 10 unidades.
+const PANEL_A = "lote A";
+const PANEL_B = "lote B";
+function panelStations(): Station[] {
+  return [
+    { id: "corte-madera", name: "Corte Madera", people: 1, ratePerHour: 2500 / 11, hours: 11, x: 100, y: 180, fill: "#94C11C", handles: [PANEL_A, PANEL_B] },
+    { id: "guillotina", name: "Guillotina", people: 1, ratePerHour: 400 / 11, hours: 11, x: 225, y: 180, fill: "#94C11C", handles: [PANEL_A, PANEL_B] },
+    { id: "despunte", name: "Despunte y Rolado", people: 1, ratePerHour: 400 / 11, hours: 11, x: 350, y: 180, fill: "#94C11C", handles: [PANEL_A, PANEL_B] },
+    { id: "doblez", name: "Doblez", people: 1, ratePerHour: 400 / 11, hours: 11, x: 475, y: 180, fill: "#94C11C", handles: [PANEL_A, PANEL_B] },
+    { id: "mesa-1", name: "Mesa Armado 1", people: 2, ratePerHour: 200 / 11, hours: 11, x: 600, y: 100, fill: "#1C1C1A", handles: [PANEL_A], flowShare: 0.5 },
+    { id: "prensa-1", name: "Prensa Espumadora 1", people: 3, ratePerHour: 200 / 11, hours: 11, x: 715, y: 100, fill: "#1C1C1A", handles: [PANEL_A], flowShare: 0.5 },
+    { id: "mesa-2", name: "Mesa Armado 2", people: 2, ratePerHour: 200 / 11, hours: 11, x: 600, y: 260, fill: "#888780", handles: [PANEL_B], flowShare: 0.5 },
+    { id: "prensa-2", name: "Prensa Espumadora 2", people: 1, ratePerHour: 200 / 11, hours: 11, x: 715, y: 260, fill: "#888780", handles: [PANEL_B], flowShare: 0.5 },
+  ];
+}
+const PANEL_ROUTES: Record<string, string[]> = {
+  [PANEL_A]: ["corte-madera", "guillotina", "despunte", "doblez", "mesa-1", "prensa-1"],
+  [PANEL_B]: ["corte-madera", "guillotina", "despunte", "doblez", "mesa-2", "prensa-2"],
+};
+const PANEL_COLORS: Record<string, string> = {
+  [PANEL_A]: "#1C1C1A",
+  [PANEL_B]: "#888780",
+};
+
+// --- LINEA DE FIBREX (datos reales, con variantes configurables) ---
+// Flujo: Corte Madera -> Orificios, se divide 50/50 en Mesa Armado 1 / Mesa
+// Armado 2, ambas convergen en Pegado -> Escuadradora -> Pintura Cantos, y de
+// ahi a tarimas (50 piezas). Pegado y Escuadradora tienen variantes; la 2a
+// pintura se activa en paralelo cuando hay cuello de botella.
+const FIBREX_A = "lote A";
+const FIBREX_B = "lote B";
+
+export interface FibrexOptions {
+  pegado: "normal" | "bostoniano";
+  escuadra: "normal" | "doble";
+  pintura2: boolean;
+}
+export const FIBREX_DEFAULTS: FibrexOptions = {
+  pegado: "normal",
+  escuadra: "normal",
+  pintura2: false,
+};
+
+export function makeFibrexLine(opts: FibrexOptions = FIBREX_DEFAULTS): ProductionLine {
+  const pegado: Station =
+    opts.pegado === "bostoniano"
+      ? { id: "pegado", name: "Pegado Bostoniano", people: 6, ratePerHour: 624 / 11, hours: 11, x: 445, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] }
+      : { id: "pegado", name: "Pegado Puerta Lisa", people: 3, ratePerHour: 1144 / 11, hours: 11, x: 445, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] };
+
+  const escuadra: Station =
+    opts.escuadra === "doble"
+      ? { id: "escuadradora", name: "Escuadradora Doble Paso", people: 6, ratePerHour: 1560 / 11, hours: 11, x: 565, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] }
+      : { id: "escuadradora", name: "Escuadradora", people: 4, ratePerHour: 780 / 11, hours: 11, x: 565, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] };
+
+  const stations: Station[] = [
+    { id: "corte-madera", name: "Corte Madera", people: 1, ratePerHour: 1040 / 11, hours: 11, x: 90, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] },
+    { id: "orificios", name: "Orificios", people: 1, ratePerHour: 1040 / 11, hours: 11, x: 205, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] },
+    { id: "mesa-1", name: "Mesa Armado 1", people: 2, ratePerHour: 520 / 11, hours: 11, x: 325, y: 100, fill: "#1C1C1A", handles: [FIBREX_A], flowShare: 0.5 },
+    { id: "mesa-2", name: "Mesa Armado 2", people: 2, ratePerHour: 520 / 11, hours: 11, x: 325, y: 260, fill: "#888780", handles: [FIBREX_B], flowShare: 0.5 },
+    pegado,
+    escuadra,
+  ];
+
+  const routes: Record<string, string[]> = {
+    [FIBREX_A]: ["corte-madera", "orificios", "mesa-1", "pegado", "escuadradora"],
+    [FIBREX_B]: ["corte-madera", "orificios", "mesa-2", "pegado", "escuadradora"],
+  };
+
+  if (opts.pintura2) {
+    // Dos lineas de pintura en paralelo: lote A -> Pintura 1, lote B -> Pintura 2
+    stations.push(
+      { id: "pintura-1", name: "Pintura Cantos 1", people: 1, ratePerHour: 780 / 11, hours: 11, x: 685, y: 110, fill: "#1C1C1A", handles: [FIBREX_A], flowShare: 0.5 },
+      { id: "pintura-2", name: "Pintura Cantos 2", people: 1, ratePerHour: 780 / 11, hours: 11, x: 685, y: 250, fill: "#888780", handles: [FIBREX_B], flowShare: 0.5 }
+    );
+    routes[FIBREX_A].push("pintura-1");
+    routes[FIBREX_B].push("pintura-2");
+  } else {
+    // Una sola pintura que recibe ambos lotes
+    stations.push({ id: "pintura-1", name: "Pintura Cantos", people: 1, ratePerHour: 780 / 11, hours: 11, x: 685, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] });
+    routes[FIBREX_A].push("pintura-1");
+    routes[FIBREX_B].push("pintura-1");
+  }
+
+  return buildLine({
+    id: "fibrex",
+    name: "Línea de Fibrex",
+    shortName: "Fibrex",
+    tagline: "Puertas Fibrex · pegado y escuadradora configurables",
+    unit: "puertas",
+    pieceTypes: [FIBREX_A, FIBREX_B],
+    pieceColors: { [FIBREX_A]: "#1C1C1A", [FIBREX_B]: "#888780" },
+    routes,
+    stations,
+    params: { targetMarcos: 780, rawMaterial: 0, workingDays: 20 },
+    assembly: "or",
+    ballUnits: 10,
+    palletSize: 50,
+  });
 }
 
 export const LINES: ProductionLine[] = [
@@ -204,31 +327,26 @@ export const LINES: ProductionLine[] = [
     routes: MARCOS_ROUTES,
     stations: marcosStations(),
     params: { targetMarcos: 990, rawMaterial: 0, workingDays: 20 },
+    assembly: "and",
+    ballUnits: 90,
+    palletSize: 330,
   }),
   buildLine({
     id: "panel",
     name: "Línea de Panel",
     shortName: "Panel",
-    tagline: "Estructura base — pendiente de detallar estaciones y parámetros",
-    unit: "paneles",
-    pieceTypes: ["bisagra", "embutido"],
-    pieceColors: { ...MARCOS_COLORS },
-    routes: JSON.parse(JSON.stringify(MARCOS_ROUTES)),
-    stations: cloneStations(marcosStations()),
-    params: { targetMarcos: 990, rawMaterial: 0, workingDays: 20 },
+    tagline: "Paneles de puerta · división 50/50 a doble prensa espumadora",
+    unit: "puertas",
+    pieceTypes: [PANEL_A, PANEL_B],
+    pieceColors: PANEL_COLORS,
+    routes: PANEL_ROUTES,
+    stations: panelStations(),
+    params: { targetMarcos: 400, rawMaterial: 0, workingDays: 20 },
+    assembly: "or",
+    ballUnits: 10,
+    palletSize: 50,
   }),
-  buildLine({
-    id: "fibrex",
-    name: "Línea de Fibrex",
-    shortName: "Fibrex",
-    tagline: "Estructura base — pendiente de detallar estaciones y parámetros",
-    unit: "piezas",
-    pieceTypes: ["bisagra", "embutido"],
-    pieceColors: { ...MARCOS_COLORS },
-    routes: JSON.parse(JSON.stringify(MARCOS_ROUTES)),
-    stations: cloneStations(marcosStations()),
-    params: { targetMarcos: 990, rawMaterial: 0, workingDays: 20 },
-  }),
+  makeFibrexLine(FIBREX_DEFAULTS),
 ];
 
 export function getLine(id: string): ProductionLine {
