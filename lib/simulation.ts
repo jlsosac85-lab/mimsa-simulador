@@ -1,28 +1,20 @@
 // ============================================================
-// Motor de simulacion de la linea de Marcos Metalicos - MIMSA
-// Capacidad por estacion = marcos por hora (de la estacion) x horas.
-// Las personas son SOLO informativas (suman al KPI de personal),
+// Motor de simulacion multi-linea - MIMSA
+// Soporta varias lineas de produccion (Marcos Metalicos, Panel, Fibrex).
+// Cada linea define sus estaciones, rutas, tipos de pieza y parametros base.
+// Capacidad por estacion = piezas/hora (de la estacion) x horas.
+// Las personas son informativas (KPI de personal y deteccion de exceso),
 // no multiplican la capacidad.
-//
-// FLUJO (actualizado):
-//   Roladora produce los dos largueros del marco.
-//   - Bisagra:  Roladora -> Troquel Bisagra -> Pintura -> Remachadora -> Embolsado
-//   - Embutido: Roladora -> Troquel Embutido -> Pintura -> Embolsado
-//   (El cabezal se omite del flujo visual para mantenerlo limpio.)
-//   Es decir: Pintura recibe el 100% de las piezas. Despues de pintar,
-//   solo el larguero-bisagra pasa por Remachadora; el resto queda en
-//   standby hasta que la bisagra termina, y entonces el juego completo
-//   se va a Embolsado.
 // ============================================================
 
-export type PieceType = "bisagra" | "embutido";
+export type PieceType = string;
 
 export interface Station {
   id: string;
   name: string;
-  /** Personas asignadas (solo informativo, suma al KPI de personal). */
+  /** Personas asignadas. */
   people: number;
-  /** Marcos por hora que produce la estacion. */
+  /** Piezas por hora que produce la estacion. */
   ratePerHour: number;
   /** Horas disponibles de la estacion en el turno. */
   hours: number;
@@ -58,17 +50,28 @@ export interface SimulationResult {
   stationResults: StationResult[];
 }
 
+// Una linea de produccion completa.
+export interface ProductionLine {
+  id: string;
+  name: string; // nombre largo, p.ej. "Línea de Marcos Metálicos"
+  shortName: string; // etiqueta corta para el selector
+  tagline: string; // descripcion breve
+  unit: string; // unidad de producto (marcos, paneles, piezas...)
+  pieceTypes: PieceType[];
+  pieceColors: Record<string, string>;
+  routes: Record<string, string[]>;
+  makeStations: () => Station[];
+  makeParams: () => GlobalParams;
+  stdProductivity: Record<string, number>;
+}
+
 export function stationCapacity(s: Station): number {
   return s.ratePerHour * s.hours;
 }
 
-export function evaluate(
-  stations: Station[],
-  params: GlobalParams
-): SimulationResult {
+export function evaluate(stations: Station[], params: GlobalParams): SimulationResult {
   const caps = stations.map(stationCapacity);
-  const systemCapacity = Math.min(...caps);
-
+  const systemCapacity = caps.length ? Math.min(...caps) : 0;
   const rawLimit = params.rawMaterial > 0 ? params.rawMaterial : Infinity;
   const effectiveCapacity = Math.min(systemCapacity, rawLimit);
 
@@ -85,8 +88,7 @@ export function evaluate(
     station: s,
     capacity: caps[i],
     isBottleneck: i === bottleneckIdx,
-    utilizationAtTarget:
-      caps[i] > 0 ? (params.targetMarcos / caps[i]) * 100 : 0,
+    utilizationAtTarget: caps[i] > 0 ? (params.targetMarcos / caps[i]) * 100 : 0,
   }));
 
   return {
@@ -100,108 +102,12 @@ export function evaluate(
   };
 }
 
-// ============================================================
-// Configuracion estandar — base de operacion actual de MIMSA.
-// Linea balanceada: todas las estaciones a 990 marcos/turno.
-//   Roladora        2 pers · 90/h  · 11 h    = 990  (cuello)
-//   Troquel Bisagra 1 pers · 240/h · 4.125 h = 990
-//   Troquel Embut.  1 pers · 240/h · 4.125 h = 990
-//   Pintura         4 pers · 120/h · 8.25 h  = 990
-//   Remachadora     1 pers · 180/h · 5.5 h   = 990
-//   Embolsado       2 pers · 100/h · 9.9 h   = 990
-// ============================================================
-export function defaultStations(): Station[] {
-  return [
-    {
-      id: "roladora",
-      name: "Roladora",
-      people: 2,
-      ratePerHour: 90,
-      hours: 11,
-      x: 120,
-      y: 180,
-      fill: "#94C11C",
-      handles: ["bisagra", "embutido"],
-    },
-    {
-      id: "troquel-bisagra",
-      name: "Troquel Bisagra",
-      people: 1,
-      ratePerHour: 240,
-      hours: 4.125,
-      x: 290,
-      y: 100,
-      fill: "#1C1C1A",
-      handles: ["bisagra"],
-    },
-    {
-      id: "troquel-embutido",
-      name: "Troquel Embutido",
-      people: 1,
-      ratePerHour: 240,
-      hours: 4.125,
-      x: 290,
-      y: 260,
-      fill: "#1C1C1A",
-      handles: ["embutido"],
-    },
-    {
-      id: "pintura",
-      name: "Pintura",
-      people: 4,
-      ratePerHour: 120,
-      hours: 8.25,
-      x: 445,
-      y: 180,
-      fill: "#94C11C",
-      handles: ["bisagra", "embutido"],
-    },
-    {
-      id: "remachadora",
-      name: "Remachadora",
-      people: 1,
-      ratePerHour: 180,
-      hours: 5.5,
-      x: 590,
-      y: 95,
-      fill: "#1C1C1A",
-      handles: ["bisagra"],
-    },
-    {
-      id: "embolsado",
-      name: "Embolsado",
-      people: 2,
-      ratePerHour: 100,
-      hours: 9.9,
-      x: 705,
-      y: 180,
-      fill: "#94C11C",
-      handles: ["bisagra", "embutido"],
-    },
-  ];
-}
-
-export function defaultParams(): GlobalParams {
-  return {
-    targetMarcos: 990,
-    rawMaterial: 0,
-    workingDays: 20,
-  };
-}
-
-// Rutas de cada tipo de pieza. Pintura va ANTES que Remachadora:
-// se pinta el 100%, luego solo la bisagra se remacha, y todo se embolsa.
-export const ROUTES: Record<PieceType, string[]> = {
-  bisagra: ["roladora", "troquel-bisagra", "pintura", "remachadora", "embolsado"],
-  embutido: ["roladora", "troquel-embutido", "pintura", "embolsado"],
-};
-
-// Deriva las conexiones (flechas) del flujo a partir de las rutas.
-export function deriveEdges(): { from: string; to: string }[] {
+// Deriva las conexiones (flechas) del flujo a partir de las rutas de una linea.
+export function deriveEdges(routes: Record<string, string[]>): { from: string; to: string }[] {
   const seen = new Set<string>();
   const edges: { from: string; to: string }[] = [];
-  (Object.keys(ROUTES) as PieceType[]).forEach((type) => {
-    const route = ROUTES[type];
+  Object.keys(routes).forEach((type) => {
+    const route = routes[type];
     for (let i = 0; i < route.length - 1; i++) {
       const key = `${route[i]}->${route[i + 1]}`;
       if (!seen.has(key)) {
@@ -213,32 +119,126 @@ export function deriveEdges(): { from: string; to: string }[] {
   return edges;
 }
 
-export const PIECE_COLORS: Record<PieceType, string> = {
+// Personas necesarias para sostener el ritmo actual de la estacion,
+// segun la productividad estandar (por persona) de la linea.
+export function requiredPeople(line: ProductionLine, s: Station): number {
+  const prod = line.stdProductivity[s.id] ?? s.ratePerHour;
+  if (prod <= 0) return 1;
+  return Math.max(1, Math.round(s.ratePerHour / prod));
+}
+
+// ============================================================
+// Configuracion de cada linea
+// ============================================================
+
+interface LineConfig {
+  id: string;
+  name: string;
+  shortName: string;
+  tagline: string;
+  unit: string;
+  pieceTypes: PieceType[];
+  pieceColors: Record<string, string>;
+  routes: Record<string, string[]>;
+  stations: Station[];
+  params: GlobalParams;
+}
+
+function buildLine(cfg: LineConfig): ProductionLine {
+  const base = cfg.stations;
+  const std: Record<string, number> = {};
+  base.forEach((s) => {
+    std[s.id] = s.people > 0 ? s.ratePerHour / s.people : s.ratePerHour;
+  });
+  return {
+    id: cfg.id,
+    name: cfg.name,
+    shortName: cfg.shortName,
+    tagline: cfg.tagline,
+    unit: cfg.unit,
+    pieceTypes: cfg.pieceTypes,
+    pieceColors: cfg.pieceColors,
+    routes: cfg.routes,
+    makeStations: () => base.map((s) => ({ ...s, handles: [...s.handles] })),
+    makeParams: () => ({ ...cfg.params }),
+    stdProductivity: std,
+  };
+}
+
+// --- LINEA DE MARCOS METALICOS (operativa, base real) ---
+function marcosStations(): Station[] {
+  return [
+    { id: "roladora", name: "Roladora", people: 2, ratePerHour: 90, hours: 11, x: 120, y: 180, fill: "#94C11C", handles: ["bisagra", "embutido"] },
+    { id: "troquel-bisagra", name: "Troquel Bisagra", people: 1, ratePerHour: 240, hours: 4.125, x: 290, y: 100, fill: "#1C1C1A", handles: ["bisagra"] },
+    { id: "troquel-embutido", name: "Troquel Embutido", people: 1, ratePerHour: 240, hours: 4.125, x: 290, y: 260, fill: "#1C1C1A", handles: ["embutido"] },
+    { id: "pintura", name: "Pintura", people: 4, ratePerHour: 120, hours: 8.25, x: 445, y: 180, fill: "#94C11C", handles: ["bisagra", "embutido"] },
+    { id: "remachadora", name: "Remachadora", people: 1, ratePerHour: 180, hours: 5.5, x: 590, y: 95, fill: "#1C1C1A", handles: ["bisagra"] },
+    { id: "embolsado", name: "Embolsado", people: 2, ratePerHour: 100, hours: 9.9, x: 705, y: 180, fill: "#94C11C", handles: ["bisagra", "embutido"] },
+  ];
+}
+const MARCOS_ROUTES: Record<string, string[]> = {
+  bisagra: ["roladora", "troquel-bisagra", "pintura", "remachadora", "embolsado"],
+  embutido: ["roladora", "troquel-embutido", "pintura", "embolsado"],
+};
+const MARCOS_COLORS: Record<string, string> = {
   bisagra: "#1C1C1A",
   embutido: "#888780",
 };
 
-// ============================================================
-// Dotacion de personal: detectar sobre-dotacion por estacion
-// ============================================================
-// Productividad estandar (marcos por persona-hora) tomada de la config base.
-// Representa cuanto produce UNA persona en cada estacion. Con esto podemos
-// estimar cuantas personas requiere la estacion para sostener su ritmo y
-// detectar exceso de personal (mas personas de las que el ritmo justifica).
-const STD_PRODUCTIVITY: Record<string, number> = (() => {
-  const map: Record<string, number> = {};
-  defaultStations().forEach((s) => {
-    map[s.id] = s.people > 0 ? s.ratePerHour / s.people : s.ratePerHour;
-  });
-  return map;
-})();
+// --- LINEAS DE PANEL Y FIBREX ---
+// Por ahora copian la estructura de Marcos Metalicos (placeholder).
+// El detalle de estaciones y parametros se definira en la siguiente fase.
+function cloneStations(src: Station[]): Station[] {
+  return src.map((s) => ({ ...s, handles: [...s.handles] }));
+}
 
-// Personas necesarias para sostener el ritmo actual de la estacion.
-// No depende de cuantas personas asigne el usuario, sino del ritmo (ratePerHour)
-// y la productividad estandar por persona. Asi, asignar 15 personas a una
-// estacion que requiere 2 se reporta como exceso de 13.
-export function requiredPeople(s: Station): number {
-  const prod = STD_PRODUCTIVITY[s.id] ?? s.ratePerHour;
-  if (prod <= 0) return 1;
-  return Math.max(1, Math.round(s.ratePerHour / prod));
+export const LINES: ProductionLine[] = [
+  buildLine({
+    id: "marcos",
+    name: "Línea de Marcos Metálicos",
+    shortName: "Marcos Metálicos",
+    tagline: "Marcos metálicos para puertas residenciales",
+    unit: "marcos",
+    pieceTypes: ["bisagra", "embutido"],
+    pieceColors: MARCOS_COLORS,
+    routes: MARCOS_ROUTES,
+    stations: marcosStations(),
+    params: { targetMarcos: 990, rawMaterial: 0, workingDays: 20 },
+  }),
+  buildLine({
+    id: "panel",
+    name: "Línea de Panel",
+    shortName: "Panel",
+    tagline: "Estructura base — pendiente de detallar estaciones y parámetros",
+    unit: "paneles",
+    pieceTypes: ["bisagra", "embutido"],
+    pieceColors: { ...MARCOS_COLORS },
+    routes: JSON.parse(JSON.stringify(MARCOS_ROUTES)),
+    stations: cloneStations(marcosStations()),
+    params: { targetMarcos: 990, rawMaterial: 0, workingDays: 20 },
+  }),
+  buildLine({
+    id: "fibrex",
+    name: "Línea de Fibrex",
+    shortName: "Fibrex",
+    tagline: "Estructura base — pendiente de detallar estaciones y parámetros",
+    unit: "piezas",
+    pieceTypes: ["bisagra", "embutido"],
+    pieceColors: { ...MARCOS_COLORS },
+    routes: JSON.parse(JSON.stringify(MARCOS_ROUTES)),
+    stations: cloneStations(marcosStations()),
+    params: { targetMarcos: 990, rawMaterial: 0, workingDays: 20 },
+  }),
+];
+
+export function getLine(id: string): ProductionLine {
+  return LINES.find((l) => l.id === id) ?? LINES[0];
+}
+
+// Compatibilidad: defaults de la linea de Marcos Metalicos.
+export function defaultStations(): Station[] {
+  return getLine("marcos").makeStations();
+}
+export function defaultParams(): GlobalParams {
+  return getLine("marcos").makeParams();
 }
