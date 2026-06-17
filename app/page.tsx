@@ -21,8 +21,8 @@ export default function Home() {
         {/* Centro: selector de linea + simulador */}
         <div className="w-full max-w-5xl min-w-0">
           {/* Selector de linea de produccion */}
-          <div className="mb-4 rounded-lg border border-mimsa-line bg-white p-2.5">
-            <div className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wide text-mimsa-gray">
+          <div className="hud-card mb-4 p-2.5">
+            <div className="hud-label mb-2 px-1 text-[10px] text-mimsa-grayLight">
               Línea de producción a simular
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -34,20 +34,20 @@ export default function Home() {
                     onClick={() => setLineId(l.id)}
                     className={`rounded-md border px-3 py-2 text-left transition ${
                       active
-                        ? "border-mimsa-green bg-mimsa-black"
-                        : "border-mimsa-line bg-mimsa-bgAlt hover:border-mimsa-green/60"
+                        ? "border-mimsa-green bg-mimsa-green/10 shadow-glow-sm"
+                        : "border-mimsa-green/15 bg-mimsa-panel hover:border-mimsa-green/60"
                     }`}
                   >
                     <div
-                      className={`text-sm font-bold leading-tight ${
-                        active ? "text-mimsa-green" : "text-mimsa-black"
+                      className={`font-display text-sm font-bold leading-tight tracking-wide ${
+                        active ? "text-mimsa-green hud-glow" : "text-mimsa-line"
                       }`}
                     >
                       {l.shortName}
                     </div>
                     <div
                       className={`mt-0.5 text-[10px] leading-snug ${
-                        active ? "text-white/70" : "text-mimsa-gray"
+                        active ? "text-mimsa-green/70" : "text-mimsa-grayLight"
                       }`}
                     >
                       {l.tagline}

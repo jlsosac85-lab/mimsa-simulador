@@ -11,24 +11,24 @@ html,
 body {
   padding: 0;
   margin: 0;
-  color: #1c1c1a;
+  color: #d7dec8;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Fondo: foto aérea de la planta MIMSA (desde mimsamty.com.mx) con un velo
-   claro para darle bastante transparencia y no estorbar la lectura. */
+/* Fondo HUD: carbón profundo + rejilla técnica tenue, con la foto aérea de
+   la planta MIMSA muy oscurecida como textura de fondo. */
 body {
-  background-color: #eceae0;
-  background-image: linear-gradient(
-      rgba(238, 236, 228, 0.88),
-      rgba(238, 236, 228, 0.92)
-    ),
+  background-color: #0e100b;
+  background-image: linear-gradient(rgba(148, 193, 28, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 193, 28, 0.04) 1px, transparent 1px),
+    radial-gradient(circle at 50% -10%, rgba(148, 193, 28, 0.08), transparent 55%),
+    linear-gradient(rgba(11, 13, 8, 0.9), rgba(11, 13, 8, 0.95)),
     url("https://mimsamty.com.mx/wp-content/uploads/2024/08/IMG_2291-scaled.jpg");
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-size: 30px 30px, 30px 30px, 100% 100%, cover, cover;
+  background-position: center, center, center, center, center;
+  background-repeat: repeat, repeat, no-repeat, no-repeat, no-repeat;
+  background-attachment: fixed, fixed, fixed, fixed, fixed;
   min-height: 100vh;
 }
 
@@ -46,7 +46,7 @@ input[type="range"] {
 }
 input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
-  background: #e5e5dc;
+  background: #2e3322;
   border-radius: 2px;
 }
 input[type="range"]::-webkit-slider-thumb {
@@ -57,11 +57,12 @@ input[type="range"]::-webkit-slider-thumb {
   background: #94c11c;
   border-radius: 50%;
   margin-top: -6px;
-  border: 2px solid #1c1c1a;
+  border: 2px solid #0e100b;
+  box-shadow: 0 0 8px rgba(148, 193, 28, 0.7);
 }
 input[type="range"]::-moz-range-track {
   height: 4px;
-  background: #e5e5dc;
+  background: #2e3322;
   border-radius: 2px;
 }
 input[type="range"]::-moz-range-thumb {
@@ -69,7 +70,8 @@ input[type="range"]::-moz-range-thumb {
   width: 16px;
   background: #94c11c;
   border-radius: 50%;
-  border: 2px solid #1c1c1a;
+  border: 2px solid #0e100b;
+  box-shadow: 0 0 8px rgba(148, 193, 28, 0.7);
 }
 
 /* Inputs numericos compactos */
@@ -87,4 +89,190 @@ input[type="number"]::-webkit-outer-spin-button {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* ============================================================
+   TEMA HUD / FUTURISTA  (paleta MIMSA: verde lima sobre carbón)
+   ============================================================ */
+
+/* Rejilla técnica de fondo (blueprint) — se monta sobre el carbón */
+.hud-grid {
+  background-color: #0e100b;
+  background-image:
+    linear-gradient(rgba(148, 193, 28, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 193, 28, 0.06) 1px, transparent 1px),
+    radial-gradient(circle at 50% 0%, rgba(148, 193, 28, 0.07), transparent 60%);
+  background-size: 26px 26px, 26px 26px, 100% 100%;
+}
+
+/* Marco HUD sin fondo (para combinar con .hud-grid en el diagrama) */
+.hud-frame {
+  position: relative;
+  border: 1px solid rgba(148, 193, 28, 0.28);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 16px) 0,
+    100% 16px,
+    100% 100%,
+    16px 100%,
+    0 calc(100% - 16px)
+  );
+  box-shadow:
+    0 0 24px -6px rgba(148, 193, 28, 0.25),
+    inset 0 1px 0 rgba(148, 193, 28, 0.08);
+}
+
+/* Panel HUD: bisel en dos esquinas + filo verde + leve resplandor */
+.hud-panel {
+  position: relative;
+  background: linear-gradient(160deg, #1c1f15 0%, #15170f 60%, #12140d 100%);
+  border: 1px solid rgba(148, 193, 28, 0.28);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 16px) 0,
+    100% 16px,
+    100% 100%,
+    16px 100%,
+    0 calc(100% - 16px)
+  );
+  box-shadow:
+    0 0 0 1px rgba(148, 193, 28, 0.06),
+    0 0 24px -6px rgba(148, 193, 28, 0.25),
+    inset 0 1px 0 rgba(148, 193, 28, 0.08);
+}
+
+/* Corner brackets en las dos esquinas rectas (no biseladas) */
+.hud-bracket::before,
+.hud-bracket::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+  z-index: 2;
+}
+.hud-bracket::before {
+  top: 6px;
+  left: 6px;
+  border-top: 2px solid #94c11c;
+  border-left: 2px solid #94c11c;
+}
+.hud-bracket::after {
+  bottom: 6px;
+  right: 6px;
+  border-bottom: 2px solid #94c11c;
+  border-right: 2px solid #94c11c;
+}
+
+/* Texto con resplandor verde (telemetría activa) */
+.hud-glow {
+  text-shadow: 0 0 8px rgba(148, 193, 28, 0.55), 0 0 2px rgba(148, 193, 28, 0.9);
+}
+
+/* Etiqueta tipo telemetría */
+.hud-label {
+  font-family: var(--font-display), system-ui, sans-serif;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* Línea de flujo del diagrama: trazo de circuito con dash en movimiento */
+.flow-line {
+  stroke-dasharray: 6 7;
+  animation: flowDash 1.1s linear infinite;
+}
+@keyframes flowDash {
+  to {
+    stroke-dashoffset: -26;
+  }
+}
+
+/* Anillo pulsante para el cuello de botella */
+.hud-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hudPulse 1.6s ease-in-out infinite;
+}
+@keyframes hudPulse {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.25;
+    transform: scale(1.18);
+  }
+}
+
+/* Barrido de escaneo (header) */
+.hud-scan {
+  position: relative;
+  overflow: hidden;
+}
+.hud-scan::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 40%,
+    rgba(148, 193, 28, 0.12) 50%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  animation: hudScan 6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes hudScan {
+  0%,
+  60% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Tarjeta HUD (paneles secundarios, sin bisel para no recargar) */
+.hud-card {
+  background: linear-gradient(155deg, #181b11 0%, #131509 72%);
+  border: 1px solid rgba(148, 193, 28, 0.16);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(148, 193, 28, 0.05);
+}
+.hud-card-green {
+  background: linear-gradient(155deg, #1d2413 0%, #141a0b 72%);
+  border: 1px solid rgba(148, 193, 28, 0.4);
+  border-radius: 10px;
+  box-shadow: 0 0 20px -8px rgba(148, 193, 28, 0.4),
+    inset 0 1px 0 rgba(148, 193, 28, 0.08);
+}
+
+/* Campos de formulario en modo oscuro */
+.hud-field {
+  background: #14160e;
+  border: 1px solid rgba(148, 193, 28, 0.22);
+  color: #d7dec8;
+  outline: none;
+}
+.hud-field:focus {
+  border-color: #94c11c;
+  box-shadow: 0 0 0 1px #94c11c, 0 0 12px -2px rgba(148, 193, 28, 0.5);
+}
+.hud-field option {
+  background: #14160e;
+  color: #d7dec8;
+}
+
+/* Botón secundario HUD */
+.hud-btn {
+  background: #181b11;
+  border: 1px solid rgba(148, 193, 28, 0.28);
+  color: #d7dec8;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.hud-btn:hover {
+  border-color: #94c11c;
+  box-shadow: 0 0 12px -3px rgba(148, 193, 28, 0.5);
 }
