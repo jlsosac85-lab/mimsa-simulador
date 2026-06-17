@@ -1,14 +1,15 @@
 "use client";
 
-import { SimulationResult, GlobalParams } from "@/lib/simulation";
+import { SimulationResult, GlobalParams, ProductionLine } from "@/lib/simulation";
 
 interface Props {
+  line: ProductionLine;
   result: SimulationResult;
   params: GlobalParams;
   liveCompleted: number;
 }
 
-export function ResultsPanel({ result, params, liveCompleted }: Props) {
+export function ResultsPanel({ line, result, params, liveCompleted }: Props) {
   const { bottleneck, effectiveCapacity, monthlyCapacity, feasible, deficit } =
     result;
 
@@ -77,7 +78,7 @@ export function ResultsPanel({ result, params, liveCompleted }: Props) {
           <>
             <strong className="text-mimsa-greenDark">Objetivo factible.</strong>{" "}
             El sistema puede entregar{" "}
-            {params.targetMarcos.toLocaleString("es-MX")} marcos en el turno. La
+            {params.targetMarcos.toLocaleString("es-MX")} {line.unit} en el turno. La
             estación más exigida es <strong>{bottleneck.name}</strong>, trabajando
             al{" "}
             {Math.round(
@@ -90,12 +91,12 @@ export function ResultsPanel({ result, params, liveCompleted }: Props) {
         ) : (
           <>
             <strong className="text-alert-red">Objetivo no factible.</strong>{" "}
-            Faltan {Math.round(deficit).toLocaleString("es-MX")} marcos. El cuello
+            Faltan {Math.round(deficit).toLocaleString("es-MX")} {line.unit}. El cuello
             es <strong>{bottleneck.name}</strong> (máx{" "}
             {Math.round(
               result.stationResults.find((r) => r.isBottleneck)!.capacity
             ).toLocaleString("es-MX")}{" "}
-            marcos/turno).{" "}
+            {line.unit}/turno).{" "}
             {tips.length > 0 && (
               <span>
                 Opciones: {tips.join(" · ")}.

@@ -13,6 +13,7 @@ interface Kpi {
   label: string;
   value: string;
   unit?: string;
+  small?: boolean; // valor de texto largo (p.ej. nombre del cuello): tipografía menor con ajuste
 }
 
 export function KpiStrip({ line, stations, params, result }: Props) {
@@ -37,6 +38,7 @@ export function KpiStrip({ line, stations, params, result }: Props) {
     {
       label: "Cuello de botella",
       value: result.bottleneck.name,
+      small: true,
       unit: `${Math.round(
         result.stationResults.find((r) => r.isBottleneck)!.capacity
       ).toLocaleString("es-MX")} máx`,
@@ -75,18 +77,24 @@ export function KpiStrip({ line, stations, params, result }: Props) {
         {kpis.map((k, i) => (
           <div
             key={k.label}
-            className={`flex flex-col items-center justify-center text-center ${
+            className={`flex min-w-0 flex-col items-center justify-center px-1 text-center ${
               i > 0 ? "lg:border-l lg:border-white/10" : ""
             }`}
           >
             <span className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-mimsa-grayLight">
               {k.label}
             </span>
-            <span className="font-mono text-2xl font-bold leading-none text-mimsa-green">
+            <span
+              className={`w-full font-mono font-bold text-mimsa-green ${
+                k.small
+                  ? "text-sm leading-tight break-words hyphens-auto"
+                  : "text-2xl leading-none"
+              }`}
+            >
               {k.value}
             </span>
             {k.unit && (
-              <span className="mt-1.5 text-[10px] text-mimsa-green/70">
+              <span className="mt-1.5 text-[10px] leading-tight text-mimsa-green/70">
                 {k.unit}
               </span>
             )}

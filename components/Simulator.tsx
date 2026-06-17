@@ -372,6 +372,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
       {/* Resultados */}
       <section className="mb-4">
         <ResultsPanel
+          line={effLine}
           result={result}
           params={params}
           liveCompleted={live.completed}
