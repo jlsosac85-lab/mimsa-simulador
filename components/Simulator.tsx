@@ -16,6 +16,7 @@ import { StationCard } from "./StationCard";
 import { PlantLayout } from "./PlantLayout";
 import { StaffingPanel } from "./StaffingPanel";
 import { ResultsPanel } from "./ResultsPanel";
+import { EfficiencyGauge } from "./EfficiencyGauge";
 
 export function Simulator({ line }: { line: ProductionLine }) {
   const [fibrexOpts, setFibrexOpts] = useState<FibrexOptions>(FIBREX_DEFAULTS);
@@ -44,6 +45,14 @@ export function Simulator({ line }: { line: ProductionLine }) {
   }, [effLine]);
 
   const result = useMemo(() => evaluate(stations, params), [stations, params]);
+
+  // Eficiencia en vivo: producción real vs. producción ideal a esta altura del
+  // turno, donde 100% = capacidad base del turno (la línea a tope).
+  const baseCapacity = result.effectiveCapacity;
+  const idealNow = baseCapacity * (live.hour / 11);
+  const efficiency =
+    live.hour > 0.4 && idealNow > 0 ? (live.completed / idealNow) * 100 : 0;
+  const measuring = running || live.hour > 0.4;
 
   function patchStation(id: string, patch: Partial<Station>) {
     setStations((prev) =>
@@ -300,6 +309,12 @@ export function Simulator({ line }: { line: ProductionLine }) {
 
       {/* Plano animado */}
       <section className="mb-4">
+        <EfficiencyGauge
+          efficiency={efficiency}
+          measuring={measuring}
+          unit={effLine.unit}
+          baseCapacity={baseCapacity}
+        />
         <PlantLayout
           line={effLine}
           stations={stations}
