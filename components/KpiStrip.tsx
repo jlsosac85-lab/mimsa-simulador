@@ -1,8 +1,9 @@
 "use client";
 
-import { Station, GlobalParams, SimulationResult, requiredPeople } from "@/lib/simulation";
+import { Station, GlobalParams, SimulationResult, ProductionLine, requiredPeople } from "@/lib/simulation";
 
 interface Props {
+  line: ProductionLine;
   stations: Station[];
   params: GlobalParams;
   result: SimulationResult;
@@ -14,13 +15,13 @@ interface Kpi {
   unit?: string;
 }
 
-export function KpiStrip({ stations, params, result }: Props) {
+export function KpiStrip({ line, stations, params, result }: Props) {
   const totalPeople = stations.reduce((sum, s) => sum + s.people, 0);
 
   // Personal sugerido = operadores que el ritmo de cada estacion requiere.
   // Si se asignan mas de los necesarios, el sugerido queda por debajo del
   // actual, evidenciando la sobre-dotacion.
-  const suggestedPeople = stations.reduce((sum, s) => sum + requiredPeople(s), 0);
+  const suggestedPeople = stations.reduce((sum, s) => sum + requiredPeople(line, s), 0);
 
   const kpis: Kpi[] = [
     {

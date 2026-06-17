@@ -4,8 +4,7 @@ import { useMemo, useState } from "react";
 import {
   Station,
   GlobalParams,
-  defaultStations,
-  defaultParams,
+  ProductionLine,
   evaluate,
 } from "@/lib/simulation";
 import { MimsaLogo } from "./MimsaLogo";
@@ -15,9 +14,9 @@ import { PlantLayout } from "./PlantLayout";
 import { StaffingPanel } from "./StaffingPanel";
 import { ResultsPanel } from "./ResultsPanel";
 
-export function Simulator() {
-  const [stations, setStations] = useState<Station[]>(defaultStations());
-  const [params, setParams] = useState<GlobalParams>(defaultParams());
+export function Simulator({ line }: { line: ProductionLine }) {
+  const [stations, setStations] = useState<Station[]>(() => line.makeStations());
+  const [params, setParams] = useState<GlobalParams>(() => line.makeParams());
   const [running, setRunning] = useState(false);
   const [speed, setSpeed] = useState(3);
   const [startMode, setStartMode] = useState<"carga" | "transitorio">("carga");
@@ -77,13 +76,13 @@ export function Simulator() {
             Simulador de Producción
           </h1>
           <p className="text-[11px] tracking-wide text-mimsa-green">
-            LÍNEA DE MARCOS METÁLICOS · ANÁLISIS DE CUELLOS DE BOTELLA
+            {line.name.toUpperCase()} · ANÁLISIS DE CUELLOS DE BOTELLA
           </p>
         </div>
       </header>
 
       {/* Cintilla de KPIs principales */}
-      <KpiStrip stations={stations} params={params} result={result} />
+      <KpiStrip line={line} stations={stations} params={params} result={result} />
 
       {/* Parametros globales */}
       <section className="mb-4 grid gap-3 rounded-lg bg-mimsa-bgAlt p-4 sm:grid-cols-3">
@@ -215,6 +214,7 @@ export function Simulator() {
       {/* Plano animado */}
       <section className="mb-4">
         <PlantLayout
+          line={line}
           stations={stations}
           target={params.targetMarcos}
           running={running}
@@ -226,7 +226,7 @@ export function Simulator() {
 
       {/* Comparativo de plantilla */}
       <section className="mb-4">
-        <StaffingPanel stations={stations} />
+        <StaffingPanel line={line} stations={stations} />
       </section>
 
       {/* Resultados */}

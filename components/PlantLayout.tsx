@@ -4,8 +4,7 @@ import { useEffect, useRef } from "react";
 import {
   Station,
   PieceType,
-  ROUTES,
-  PIECE_COLORS,
+  ProductionLine,
   stationCapacity,
   deriveEdges,
 } from "@/lib/simulation";
@@ -13,6 +12,7 @@ import {
 type StartMode = "carga" | "transitorio";
 
 interface Props {
+  line: ProductionLine;
   stations: Station[];
   target: number;
   running: boolean;
@@ -180,6 +180,7 @@ function curveStr(c: Curve): string {
 }
 
 export function PlantLayout({
+  line,
   stations,
   target,
   running,
@@ -190,6 +191,7 @@ export function PlantLayout({
   const svgRef = useRef<SVGSVGElement>(null);
   const layerRef = useRef<SVGGElement>(null);
 
+  const lineRef = useRef(line);
   const stationsRef = useRef(stations);
   const targetRef = useRef(target);
   const speedRef = useRef(speed);
@@ -204,11 +206,12 @@ export function PlantLayout({
     completed: 0,
     nextArrival: 0,
     stats: {} as Record<string, StatBucket>,
-    buffer: { bisagra: 0, embutido: 0 } as Record<PieceType, number>,
+    buffer: {} as Record<string, number>,
     lastTick: 0,
     rafId: 0,
   });
 
+  lineRef.current = line;
   stationsRef.current = stations;
   targetRef.current = target;
   speedRef.current = speed;
@@ -232,7 +235,7 @@ export function PlantLayout({
     const sim = simRef.current;
     const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     c.setAttribute("r", "4");
-    c.setAttribute("fill", PIECE_COLORS[type]);
+    c.setAttribute("fill", lineRef.current.pieceColors[type] || "#888780");
     c.setAttribute("stroke", "#FFFFFF");
     c.setAttribute("stroke-width", "0.8");
     layerRef.current?.appendChild(c);
@@ -279,6 +282,15 @@ export function PlantLayout({
     return { x: s.x, y: s.y - ST_H / 2 };
   }
 
+  // Separacion vertical de cada tipo de pieza (para no encimar bolitas
+  // de tipos distintos en colas y llegadas). Centrado segun pieceTypes.
+  function typeOffset(type: string): number {
+    const types = lineRef.current.pieceTypes;
+    const idx = types.indexOf(type);
+    const n = types.length;
+    return (idx - (n - 1) / 2) * 6;
+  }
+
   function setTravel(p: Piece, cv: Curve) {
     p.cv = cv;
     p.edgeT = 0;
@@ -303,7 +315,7 @@ export function PlantLayout({
     sim.simTime = 0;
     sim.completed = 0;
     sim.nextArrival = 0;
-    sim.buffer = { bisagra: 0, embutido: 0 };
+    sim.buffer = {};
     resetStats();
   }
 
@@ -340,7 +352,7 @@ export function PlantLayout({
   }
 
   function nextStationId(type: PieceType, currentId: string): string | null {
-    const r = ROUTES[type];
+    const r = lineRef.current.routes[type] || [];
     const idx = r.indexOf(currentId);
     return idx >= 0 && idx < r.length - 1 ? r[idx + 1] : null;
   }
@@ -421,16 +433,20 @@ export function PlantLayout({
     sim.simTime += dt;
     const t = sim.simTime;
     const tgt = targetRef.current;
-    const rol = stationById("roladora");
 
     const arrivalsPerHour = tgt / TURN_HOURS / BATCH;
     const arrivalInterval = arrivalsPerHour > 0 ? 1 / arrivalsPerHour : Infinity;
-    while (t >= sim.nextArrival && t < TURN_HOURS && rol) {
-      (["bisagra", "embutido"] as PieceType[]).forEach((type, idx) => {
+    const types = lineRef.current.pieceTypes;
+    while (t >= sim.nextArrival && t < TURN_HOURS) {
+      types.forEach((type) => {
+        const route = lineRef.current.routes[type] || [];
+        const first = route.length ? stationById(route[0]) : null;
+        if (!first) return;
+        const oy = 180 + typeOffset(type);
         const p = makePiece(type);
         p.stage = 0;
-        setPos(p, 60, 180 + (idx === 0 ? -5 : 5));
-        setTravel(p, curveH(60, 180 + (idx === 0 ? -5 : 5), rol.x - ST_A, rol.y));
+        setPos(p, 60, oy);
+        setTravel(p, curveH(60, oy, first.x - ST_A, first.y));
         sim.pieces.push(p);
       });
       sim.nextArrival += arrivalInterval;
@@ -443,7 +459,7 @@ export function PlantLayout({
 
     for (let i = sim.pieces.length - 1; i >= 0; i--) {
       const p = sim.pieces[i];
-      const route = ROUTES[p.type];
+      const route = lineRef.current.routes[p.type] || [];
 
       if (p.state === "toPallet") {
         if (advance(p, dt)) depositPallet(p, i);
@@ -470,7 +486,7 @@ export function PlantLayout({
       } else if (p.state === "queue") {
         const idx = st.queue.indexOf(p);
         const dx = s.x - ST_A - 10 - (idx % 6) * 5;
-        const offset = p.type === "embutido" ? 3 : -3;
+        const offset = typeOffset(p.type);
         const dy = s.y + Math.floor(idx / 6) * 5 + offset;
         setPos(p, dx, dy);
         if (!st.serving && st.queue[0] === p) {
@@ -499,10 +515,10 @@ export function PlantLayout({
 
   function depositPallet(p: Piece, i: number) {
     const sim = simRef.current;
-    sim.buffer[p.type]++;
-    while (sim.buffer.bisagra > 0 && sim.buffer.embutido > 0) {
-      sim.buffer.bisagra--;
-      sim.buffer.embutido--;
+    sim.buffer[p.type] = (sim.buffer[p.type] || 0) + 1;
+    const types = lineRef.current.pieceTypes;
+    while (types.every((tp) => (sim.buffer[tp] || 0) > 0)) {
+      types.forEach((tp) => (sim.buffer[tp] = (sim.buffer[tp] || 0) - 1));
       sim.completed += BATCH;
     }
     removePiece(p);
@@ -682,12 +698,12 @@ export function PlantLayout({
         {/* Conectores que las bolitas siguen */}
         <g stroke="#888780" strokeWidth="1.5" fill="none">
           {(() => {
-            const rol = stations.find((s) => s.id === "roladora");
-            return rol ? (
-              <path d={`M 60 180 C 90 180, ${rol.x - ST_A - 30} ${rol.y}, ${rol.x - ST_A} ${rol.y}`} markerEnd="url(#arrow)" />
+            const first = stations[0];
+            return first ? (
+              <path d={`M 60 180 C 90 180, ${first.x - ST_A - 30} ${first.y}, ${first.x - ST_A} ${first.y}`} markerEnd="url(#arrow)" />
             ) : null;
           })()}
-          {deriveEdges().map(({ from, to }) => {
+          {deriveEdges(line.routes).map(({ from, to }) => {
             const a = stations.find((s) => s.id === from);
             const b = stations.find((s) => s.id === to);
             if (!a || !b) return null;
@@ -794,12 +810,17 @@ export function PlantLayout({
           <text x="60" y="13" textAnchor="middle" fontSize="10" fontWeight="600" fill="white">CUELLO DE BOTELLA</text>
         </g>
 
-        {/* Leyenda */}
-        <circle cx="40" cy={LEGEND_Y} r="4" fill="#1C1C1A" stroke="#FFFFFF" strokeWidth="0.8" />
-        <text x="50" y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Larguero bisagra</text>
-        <circle cx="172" cy={LEGEND_Y} r="4" fill="#888780" stroke="#FFFFFF" strokeWidth="0.8" />
-        <text x="182" y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Larguero embutido</text>
-        <text x="320" y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Cada bolita = 90 unidades</text>
+        {/* Leyenda dinamica por tipo de pieza de la linea */}
+        {line.pieceTypes.map((tp, i) => {
+          const lx = 40 + i * 132;
+          return (
+            <g key={`leg-${tp}`}>
+              <circle cx={lx} cy={LEGEND_Y} r="4" fill={line.pieceColors[tp] || "#888780"} stroke="#FFFFFF" strokeWidth="0.8" />
+              <text x={lx + 10} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A" style={{ textTransform: "capitalize" }}>{tp}</text>
+            </g>
+          );
+        })}
+        <text x={40 + line.pieceTypes.length * 132} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Cada bolita = 90 unidades</text>
 
         {/* Titulo zona de tarimas */}
         <text x="20" y={TITLE_Y} fontSize="11" fontWeight="700" fill="#1C1C1A">PRODUCTO TERMINADO</text>

@@ -1,19 +1,20 @@
 "use client";
 
-import { Station, requiredPeople } from "@/lib/simulation";
+import { Station, ProductionLine, requiredPeople } from "@/lib/simulation";
 
 interface Props {
+  line: ProductionLine;
   stations: Station[];
 }
 
 // Comparativo de plantilla: personas asignadas (inputs) vs. personas que el
 // ritmo de cada estacion realmente requiere. Detecta sobre-dotacion (exceso)
 // y, por separado, el tiempo muerto de los operadores necesarios.
-export function StaffingPanel({ stations }: Props) {
+export function StaffingPanel({ line, stations }: Props) {
   const TURN = Math.max(11, ...stations.map((s) => s.hours));
 
   const rows = stations.map((s) => {
-    const need = requiredPeople(s); // operadores que pide el ritmo
+    const need = requiredPeople(line, s); // operadores que pide el ritmo
     const util = Math.min(1, s.hours / TURN); // parte del turno que opera
     const excess = Math.max(0, s.people - need);
     const missing = Math.max(0, need - s.people);
