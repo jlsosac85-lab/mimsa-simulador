@@ -1,7 +1,7 @@
 "use client";
 
 interface Props {
-  /** Eficiencia 0–100 (producción real vs capacidad base del turno). */
+  /** Eficiencia global 0–100 (producción × aprovechamiento de personal). */
   efficiency: number;
   /** La simulación está corriendo o ya avanzó. */
   measuring: boolean;
@@ -9,6 +9,14 @@ interface Props {
   unit: string;
   /** Capacidad base del turno (100% de eficiencia). */
   baseCapacity: number;
+  /** Factor de producción (0–100): real vs. capacidad base. */
+  prodPct: number;
+  /** Factor de mano de obra (0–100): plantilla necesaria vs. asignada. */
+  staffPct: number;
+  /** Operadores asignados. */
+  totalPeople: number;
+  /** Operadores necesarios por ritmo. */
+  neededPeople: number;
 }
 
 // Estados por rango, de mayor a menor.
@@ -23,9 +31,19 @@ const STAGES = [
 const GRADIENT =
   "linear-gradient(to right, #A32D2D 0%, #EF9F27 27%, #E6B800 50%, #94C11C 76%, #5A9E12 100%)";
 
-export function EfficiencyGauge({ efficiency, measuring, unit, baseCapacity }: Props) {
+export function EfficiencyGauge({
+  efficiency,
+  measuring,
+  unit,
+  baseCapacity,
+  prodPct,
+  staffPct,
+  totalPeople,
+  neededPeople,
+}: Props) {
   const pct = Math.max(0, Math.min(100, efficiency));
   const stage = STAGES.find((s) => pct >= s.min) || STAGES[STAGES.length - 1];
+  const exceso = totalPeople - neededPeople;
 
   return (
     <div className="mb-3 rounded-lg border border-mimsa-line bg-white px-4 py-3 shadow-sm">
@@ -92,6 +110,30 @@ export function EfficiencyGauge({ efficiency, measuring, unit, baseCapacity }: P
           <span>75%</span>
           <span>100%</span>
         </div>
+      </div>
+
+      {/* Desglose de los dos factores */}
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-mimsa-line pt-2 text-[11px]">
+        <span className="text-mimsa-gray">
+          Producción{" "}
+          <span className="font-mono font-semibold text-mimsa-black">
+            {measuring ? `${prodPct.toFixed(0)}%` : "—"}
+          </span>
+        </span>
+        <span className="text-mimsa-gray/50">×</span>
+        <span className="text-mimsa-gray">
+          Mano de obra{" "}
+          <span
+            className="font-mono font-semibold"
+            style={{ color: staffPct < 99 ? "#A32D2D" : "#1C1C1A" }}
+          >
+            {staffPct.toFixed(0)}%
+          </span>
+        </span>
+        <span className="text-mimsa-gray/60">
+          ({totalPeople} asignados · {neededPeople} necesarios
+          {exceso > 0 ? ` · ${exceso} de más` : ""})
+        </span>
       </div>
 
       {!measuring && (
