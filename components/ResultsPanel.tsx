@@ -42,7 +42,7 @@ export function ResultsPanel({ line, result, params, liveCompleted }: Props) {
   }
 
   return (
-    <div className="rounded-lg border border-mimsa-line bg-white p-4">
+    <div className="hud-card p-4">
       <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Metric
           label="Cumplimiento (vivo)"
@@ -70,13 +70,13 @@ export function ResultsPanel({ line, result, params, liveCompleted }: Props) {
       <div
         className={`rounded-md border-l-[3px] p-3 text-sm leading-relaxed ${
           feasible
-            ? "border-mimsa-green bg-mimsa-greenLight text-mimsa-black"
-            : "border-alert-red bg-alert-redLight text-mimsa-black"
+            ? "border-mimsa-green bg-mimsa-green/12 text-mimsa-line"
+            : "border-alert-red bg-alert-red/15 text-mimsa-line"
         }`}
       >
         {feasible ? (
           <>
-            <strong className="text-mimsa-greenDark">Objetivo factible.</strong>{" "}
+            <strong className="text-mimsa-green">Objetivo factible.</strong>{" "}
             El sistema puede entregar{" "}
             {params.targetMarcos.toLocaleString("es-MX")} {line.unit} en el turno. La
             estación más exigida es <strong>{bottleneck.name}</strong>, trabajando
@@ -122,13 +122,13 @@ function Metric({
 }) {
   const color =
     tone === "green"
-      ? "text-mimsa-greenDark"
+      ? "text-mimsa-green"
       : tone === "red"
       ? "text-alert-red"
-      : "text-mimsa-black";
+      : "text-mimsa-line";
   return (
-    <div className="rounded-md bg-mimsa-bg p-2.5">
-      <div className="mb-1 text-[10px] uppercase tracking-wide text-mimsa-gray">
+    <div className="rounded-md bg-mimsa-deep p-2.5">
+      <div className="mb-1 text-[10px] uppercase tracking-wide text-mimsa-grayLight">
         {label}
       </div>
       <div

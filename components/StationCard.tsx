@@ -26,7 +26,7 @@ function NumberField({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-wide text-mimsa-gray">
+      <span className="text-[10px] uppercase tracking-wide text-mimsa-grayLight">
         {label}
       </span>
       <div className="flex items-center gap-1">
@@ -39,7 +39,7 @@ function NumberField({
             const v = parseFloat(e.target.value);
             onChange(Number.isFinite(v) ? Math.max(min, v) : min);
           }}
-          className="w-full rounded-md border border-mimsa-line bg-white px-2 py-1 text-sm font-medium text-mimsa-black outline-none focus:border-mimsa-green focus:ring-1 focus:ring-mimsa-green"
+          className="hud-field w-full rounded-md px-2 py-1 text-sm font-medium"
         />
         {suffix && (
           <span className="text-[10px] text-mimsa-grayLight">{suffix}</span>
@@ -54,10 +54,10 @@ export function StationCard({ station, isBottleneck, unit, onChange }: Props) {
 
   return (
     <div
-      className={`rounded-lg border bg-white p-3 transition-colors ${
+      className={`hud-card p-3 transition-colors ${
         isBottleneck
-          ? "border-alert-red ring-1 ring-alert-red/30"
-          : "border-mimsa-line"
+          ? "!border-alert-red ring-1 ring-alert-red/40"
+          : ""
       }`}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -65,7 +65,7 @@ export function StationCard({ station, isBottleneck, unit, onChange }: Props) {
           type="text"
           value={station.name}
           onChange={(e) => onChange(station.id, { name: e.target.value })}
-          className="min-w-0 flex-1 border-none bg-transparent text-sm font-semibold text-mimsa-black outline-none focus:underline"
+          className="min-w-0 flex-1 border-none bg-transparent text-sm font-semibold text-mimsa-line outline-none focus:underline"
         />
         {isBottleneck && (
           <span className="shrink-0 rounded-full bg-alert-red px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white">
@@ -97,13 +97,13 @@ export function StationCard({ station, isBottleneck, unit, onChange }: Props) {
         />
       </div>
 
-      <div className="mt-2 flex items-center justify-between border-t border-mimsa-line pt-2">
-        <span className="text-[10px] uppercase tracking-wide text-mimsa-gray">
+      <div className="mt-2 flex items-center justify-between border-t border-mimsa-green/15 pt-2">
+        <span className="text-[10px] uppercase tracking-wide text-mimsa-grayLight">
           Capacidad
         </span>
         <span
           className={`font-mono text-sm font-semibold ${
-            isBottleneck ? "text-alert-red" : "text-mimsa-greenDark"
+            isBottleneck ? "text-alert-red" : "text-mimsa-green"
           }`}
         >
           {cap.toLocaleString("es-MX")}{" "}

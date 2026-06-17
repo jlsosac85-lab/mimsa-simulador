@@ -132,14 +132,14 @@ export function Simulator({ line }: { line: ProductionLine }) {
   return (
     <div className="w-full">
       {/* Header */}
-      <header className="mb-4 flex items-center gap-4 rounded-lg bg-mimsa-black px-5 py-3">
+      <header className="hud-panel hud-bracket hud-scan mb-4 flex items-center gap-4 px-6 py-3.5">
         <MimsaLogo size={46} />
         <div className="min-w-0">
-          <h1 className="text-base font-semibold leading-tight text-white">
+          <h1 className="font-display text-lg font-bold leading-tight tracking-wide text-white">
             Simulador de Producción
           </h1>
-          <p className="text-[11px] tracking-wide text-mimsa-green">
-            {effLine.name.toUpperCase()} · ANÁLISIS DE CUELLOS DE BOTELLA
+          <p className="hud-label text-[11px] text-mimsa-green hud-glow">
+            {effLine.name.toUpperCase()} · Análisis de cuellos de botella
           </p>
         </div>
       </header>
@@ -148,9 +148,9 @@ export function Simulator({ line }: { line: ProductionLine }) {
       <KpiStrip line={effLine} stations={stations} params={params} result={result} />
 
       {/* Parametros globales */}
-      <section className="mb-4 grid gap-3 rounded-lg bg-mimsa-bgAlt p-4 sm:grid-cols-3">
+      <section className="hud-card mb-4 grid gap-3 p-4 sm:grid-cols-3">
         <label className="flex flex-col gap-1.5">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-mimsa-gray">
+          <span className="hud-label text-[10px] text-mimsa-grayLight">
             Objetivo {effLine.unit}/turno
           </span>
           <div className="flex items-center gap-3">
@@ -168,14 +168,14 @@ export function Simulator({ line }: { line: ProductionLine }) {
               }
               className="flex-1"
             />
-            <span className="w-14 text-right font-mono text-sm font-semibold text-mimsa-black">
+            <span className="w-14 text-right font-mono text-sm font-bold text-mimsa-green hud-glow">
               {params.targetMarcos}
             </span>
           </div>
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-mimsa-gray">
+          <span className="hud-label text-[10px] text-mimsa-grayLight">
             Materia prima disponible (0 = sin límite)
           </span>
           <input
@@ -189,12 +189,12 @@ export function Simulator({ line }: { line: ProductionLine }) {
                 rawMaterial: Math.max(0, parseInt(e.target.value) || 0),
               }))
             }
-            className="rounded-md border border-mimsa-line bg-white px-2 py-1.5 text-sm font-medium outline-none focus:border-mimsa-green focus:ring-1 focus:ring-mimsa-green"
+            className="hud-field rounded-md px-2 py-1.5 text-sm font-medium"
           />
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-mimsa-gray">
+          <span className="hud-label text-[10px] text-mimsa-grayLight">
             Días hábiles (proyección mensual)
           </span>
           <input
@@ -208,25 +208,25 @@ export function Simulator({ line }: { line: ProductionLine }) {
                 workingDays: Math.max(1, parseInt(e.target.value) || 1),
               }))
             }
-            className="rounded-md border border-mimsa-line bg-white px-2 py-1.5 text-sm font-medium outline-none focus:border-mimsa-green focus:ring-1 focus:ring-mimsa-green"
+            className="hud-field rounded-md px-2 py-1.5 text-sm font-medium"
           />
         </label>
       </section>
 
       {/* Opciones especificas de la linea Fibrex */}
       {line.id === "fibrex" && (
-        <section className="mb-4 grid gap-3 rounded-lg border border-mimsa-green/30 bg-mimsa-greenLight p-4 sm:grid-cols-3">
+        <section className="hud-card-green mb-4 grid gap-3 p-4 sm:grid-cols-3">
           <div className="sm:col-span-3 -mb-1 flex items-center gap-2">
-            <span className="rounded bg-mimsa-green px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-mimsa-black">
+            <span className="hud-label rounded bg-mimsa-green px-2 py-0.5 text-[10px] font-bold text-mimsa-black">
               Configuración Fibrex
             </span>
-            <span className="text-[11px] text-mimsa-gray">
+            <span className="text-[11px] text-mimsa-grayLight">
               Cambia el tipo de proceso y observa cómo se mueve el cuello de botella
             </span>
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-medium uppercase tracking-wide text-mimsa-gray">
+            <span className="hud-label text-[10px] text-mimsa-grayLight">
               Pegado
             </span>
             <select
@@ -234,7 +234,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
               onChange={(e) =>
                 setFibrexOpts((o) => ({ ...o, pegado: e.target.value as FibrexOptions["pegado"] }))
               }
-              className="rounded-md border border-mimsa-line bg-white px-2 py-2 text-sm font-medium text-mimsa-black outline-none focus:border-mimsa-green"
+              className="hud-field rounded-md px-2 py-2 text-sm font-medium"
             >
               <option value="normal">Puerta Lisa Normal — 3 personas · 1,144/turno</option>
               <option value="bostoniano">Bostoniano (Extras) — 6 personas · 624/turno</option>
@@ -242,7 +242,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-medium uppercase tracking-wide text-mimsa-gray">
+            <span className="hud-label text-[10px] text-mimsa-grayLight">
               Escuadradora
             </span>
             <select
@@ -250,7 +250,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
               onChange={(e) =>
                 setFibrexOpts((o) => ({ ...o, escuadra: e.target.value as FibrexOptions["escuadra"] }))
               }
-              className="rounded-md border border-mimsa-line bg-white px-2 py-2 text-sm font-medium text-mimsa-black outline-none focus:border-mimsa-green"
+              className="hud-field rounded-md px-2 py-2 text-sm font-medium"
             >
               <option value="normal">Escuadradora — 4 personas · 780/turno</option>
               <option value="doble">Doble Paso (Extras) — 6 personas · 1,560/turno</option>
@@ -258,16 +258,16 @@ export function Simulator({ line }: { line: ProductionLine }) {
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-medium uppercase tracking-wide text-mimsa-gray">
+            <span className="hud-label text-[10px] text-mimsa-grayLight">
               Pintura de Cantos
             </span>
             <button
               type="button"
               onClick={() => setFibrexOpts((o) => ({ ...o, pintura2: !o.pintura2 }))}
-              className={`rounded-md border px-2 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-md px-2 py-2 text-sm font-medium transition-colors ${
                 fibrexOpts.pintura2
-                  ? "border-mimsa-green bg-mimsa-green text-mimsa-black"
-                  : "border-mimsa-line bg-white text-mimsa-black hover:border-mimsa-green"
+                  ? "border border-mimsa-green bg-mimsa-green text-mimsa-black"
+                  : "hud-btn"
               }`}
             >
               {fibrexOpts.pintura2
@@ -282,19 +282,19 @@ export function Simulator({ line }: { line: ProductionLine }) {
       <section className="mb-4 flex flex-wrap items-center gap-3">
         <button
           onClick={() => setRunning((r) => !r)}
-          className="inline-flex items-center gap-2 rounded-md bg-mimsa-green px-4 py-2 text-sm font-semibold text-mimsa-black transition-opacity hover:opacity-90"
+          className="inline-flex items-center gap-2 rounded-md bg-mimsa-green px-4 py-2 text-sm font-semibold text-mimsa-black shadow-glow-sm transition-opacity hover:opacity-90"
         >
           {running ? "❚❚ Pausa" : "▶ Iniciar simulación"}
         </button>
         <label className="flex items-center gap-1.5">
-          <span className="text-[11px] text-mimsa-gray">Arranque</span>
+          <span className="hud-label text-[10px] text-mimsa-grayLight">Arranque</span>
           <select
             value={startMode}
             onChange={(e) => {
               setStartMode(e.target.value as "carga" | "transitorio");
               resetSim();
             }}
-            className="rounded-md border border-mimsa-line bg-white px-2 py-2 text-sm font-medium text-mimsa-black outline-none focus:border-mimsa-green"
+            className="hud-field rounded-md px-2 py-2 text-sm font-medium"
           >
             <option value="carga">Carga 100% por estación</option>
             <option value="transitorio">Con transitorio (en cadena)</option>
@@ -302,12 +302,12 @@ export function Simulator({ line }: { line: ProductionLine }) {
         </label>
         <button
           onClick={resetSim}
-          className="inline-flex items-center gap-2 rounded-md border border-mimsa-line bg-white px-4 py-2 text-sm font-medium text-mimsa-black transition-opacity hover:opacity-90"
+          className="hud-btn inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
         >
           ↻ Reiniciar
         </button>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-mimsa-gray">Velocidad</span>
+          <span className="hud-label text-[10px] text-mimsa-grayLight">Velocidad</span>
           <input
             type="range"
             min={1}
@@ -319,11 +319,11 @@ export function Simulator({ line }: { line: ProductionLine }) {
         </div>
         <button
           onClick={exportConfig}
-          className="inline-flex items-center gap-2 rounded-md border border-mimsa-line bg-white px-4 py-2 text-sm font-medium text-mimsa-black transition-opacity hover:opacity-90"
+          className="hud-btn inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
         >
           ↓ Exportar escenario (JSON)
         </button>
-        <div className="ml-auto inline-flex items-center gap-3 rounded-lg border border-mimsa-green/40 bg-mimsa-black px-4 py-2 font-mono text-sm font-bold text-mimsa-green shadow-sm">
+        <div className="ml-auto inline-flex items-center gap-3 rounded-lg border border-mimsa-green/40 bg-mimsa-deep px-4 py-2 font-mono text-sm font-bold text-mimsa-green shadow-glow-sm">
           <span>
             Hora <span className="text-white">{live.hour.toFixed(1)}</span>
             <span className="text-mimsa-green/60">/11</span>
@@ -382,10 +382,10 @@ export function Simulator({ line }: { line: ProductionLine }) {
       {/* Estaciones editables */}
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-mimsa-black">
+          <h2 className="hud-label text-xs font-semibold text-mimsa-green">
             Estaciones — edita personas, ritmo y horas
           </h2>
-          <span className="text-[11px] text-mimsa-gray">
+          <span className="text-[11px] text-mimsa-grayLight">
             Capacidad = {effLine.unit}/hora × horas
           </span>
         </div>
@@ -402,7 +402,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
         </div>
       </section>
 
-      <footer className="mt-6 border-t border-mimsa-line pt-4 text-center text-[11px] text-mimsa-gray">
+      <footer className="mt-6 border-t border-mimsa-green/15 pt-4 text-center text-[11px] text-mimsa-grayLight">
         MIMSA · Manufactura Integral de Marcos y Soluciones de Acero — Simulador
         de {effLine.name}. Datos base del análisis de tiempos por estación.
       </footer>

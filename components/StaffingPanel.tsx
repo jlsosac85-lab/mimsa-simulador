@@ -27,14 +27,14 @@ export function StaffingPanel({ line, stations }: Props) {
   const totalExcess = rows.reduce((a, r) => a + r.excess, 0);
 
   return (
-    <div className="rounded-lg border border-mimsa-line bg-white p-4">
+    <div className="hud-card p-4">
       <div className="mb-1 flex items-baseline justify-between">
-        <h3 className="text-sm font-semibold text-mimsa-black">
+        <h3 className="text-sm font-semibold text-mimsa-line">
           Plantilla en turno — actual vs. necesaria
         </h3>
-        <span className="text-[11px] text-mimsa-gray">turno de {TURN} h</span>
+        <span className="text-[11px] text-mimsa-grayLight">turno de {TURN} h</span>
       </div>
-      <p className="mb-3 text-[11px] text-mimsa-gray">
+      <p className="mb-3 text-[11px] text-mimsa-grayLight">
         “Necesarias” son los operadores que el ritmo de la estación justifica. Si
         asignas más, el resto aparece marcado como exceso. La barra indica qué
         parte del turno opera la estación (tiempo muerto de los operadores).
@@ -48,30 +48,30 @@ export function StaffingPanel({ line, stations }: Props) {
             <div
               key={r.id}
               className={`flex items-center gap-3 rounded-md px-1.5 py-1 ${
-                r.excess > 0 ? "bg-alert-redLight" : ""
+                r.excess > 0 ? "bg-alert-red/15" : ""
               }`}
             >
-              <div className="w-28 shrink-0 truncate text-xs font-medium text-mimsa-black">
+              <div className="w-28 shrink-0 truncate text-xs font-medium text-mimsa-line">
                 {r.name}
               </div>
-              <div className="relative h-4 flex-1 overflow-hidden rounded bg-mimsa-bgAlt">
+              <div className="relative h-4 flex-1 overflow-hidden rounded bg-mimsa-deep">
                 <div
                   className="h-full rounded"
                   style={{ width: `${pct}%`, background: full ? "#94C11C" : "#EF9F27" }}
                 />
-                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-mimsa-black">
+                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-mimsa-line">
                   {pct}% del turno
                 </span>
               </div>
               <div className="w-12 shrink-0 text-center text-xs">
-                <div className={`font-semibold ${r.excess > 0 ? "text-alert-red" : "text-mimsa-black"}`}>
+                <div className={`font-semibold ${r.excess > 0 ? "text-alert-red" : "text-mimsa-line"}`}>
                   {r.people}
                 </div>
-                <div className="text-[9px] text-mimsa-gray">actual</div>
+                <div className="text-[9px] text-mimsa-grayLight">actual</div>
               </div>
               <div className="w-12 shrink-0 text-center text-xs">
-                <div className="font-semibold text-mimsa-greenDark">{r.need}</div>
-                <div className="text-[9px] text-mimsa-gray">necesarias</div>
+                <div className="font-semibold text-mimsa-green">{r.need}</div>
+                <div className="text-[9px] text-mimsa-grayLight">necesarias</div>
               </div>
               <div className="w-28 shrink-0 text-right text-[10px]">
                 {r.excess > 0 ? (
@@ -79,11 +79,11 @@ export function StaffingPanel({ line, stations }: Props) {
                     exceso {r.excess} op.
                   </span>
                 ) : r.missing > 0 ? (
-                  <span style={{ color: "#B97400" }}>faltan {r.missing} op.</span>
+                  <span style={{ color: "#EF9F27" }}>faltan {r.missing} op.</span>
                 ) : r.idleH > 0.1 ? (
-                  <span className="text-mimsa-gray">{r.idleH.toFixed(1)} h muertas/op</span>
+                  <span className="text-mimsa-grayLight">{r.idleH.toFixed(1)} h muertas/op</span>
                 ) : (
-                  <span className="text-mimsa-greenDark">a tope</span>
+                  <span className="text-mimsa-green">a tope</span>
                 )}
               </div>
             </div>
@@ -91,19 +91,19 @@ export function StaffingPanel({ line, stations }: Props) {
         })}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-mimsa-line pt-3 text-xs">
-        <span className="text-mimsa-black">
+      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-mimsa-green/15 pt-3 text-xs">
+        <span className="text-mimsa-line">
           Plantilla actual: <b>{totalActual}</b> operadores
         </span>
-        <span className="text-mimsa-black">
-          Necesaria por ritmo: <b className="text-mimsa-greenDark">{totalNeed}</b>
+        <span className="text-mimsa-line">
+          Necesaria por ritmo: <b className="text-mimsa-green">{totalNeed}</b>
         </span>
         {totalExcess > 0 ? (
           <span className="font-semibold text-alert-red">
             Exceso de {totalExcess} operador{totalExcess > 1 ? "es" : ""} en la línea
           </span>
         ) : (
-          <span className="text-mimsa-greenDark">Dotación balanceada · sin exceso</span>
+          <span className="text-mimsa-green">Dotación balanceada · sin exceso</span>
         )}
       </div>
     </div>

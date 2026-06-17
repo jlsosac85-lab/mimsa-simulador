@@ -240,10 +240,9 @@ export function PlantLayout({
   function makePiece(type: PieceType): Piece {
     const sim = simRef.current;
     const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    c.setAttribute("r", "4");
-    c.setAttribute("fill", lineRef.current.pieceColors[type] || "#888780");
-    c.setAttribute("stroke", "#FFFFFF");
-    c.setAttribute("stroke-width", "0.8");
+    c.setAttribute("r", "4.3");
+    c.setAttribute("fill", `url(#sphere-${type.replace(/\s+/g, "-")})`);
+    c.setAttribute("stroke", "none");
     layerRef.current?.appendChild(c);
     return {
       id: ++sim.pieceId,
@@ -730,23 +729,62 @@ export function PlantLayout({
   const vbH = viewBoxHeight(target, line.palletSize);
 
   return (
-    <div className="rounded-lg border border-mimsa-line bg-mimsa-bg p-2">
+    <div className="hud-grid hud-frame hud-bracket p-3">
       <svg ref={svgRef} viewBox={`0 0 760 ${vbH}`} className="block h-auto w-full" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-            <path d="M0,0 L10,5 L0,10 z" fill="#888780" />
+            <path d="M0,0 L10,5 L0,10 z" fill="#94C11C" />
           </marker>
           <marker id="arrowGreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-            <path d="M0,0 L10,5 L0,10 z" fill="#6F9213" />
+            <path d="M0,0 L10,5 L0,10 z" fill="#94C11C" />
           </marker>
+          {/* Resplandor verde para las bolitas en movimiento */}
+          <filter id="ballGlow" x="-60%" y="-60%" width="220%" height="220%">
+            <feDropShadow dx="0" dy="0" stdDeviation="1.6" floodColor="#94C11C" floodOpacity="0.9" />
+          </filter>
+          {/* Resplandor tenue para las líneas de flujo */}
+          <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="0" stdDeviation="1.1" floodColor="#94C11C" floodOpacity="0.55" />
+          </filter>
+          {/* Esferas (volumen 3D) por tipo de pieza */}
+          {line.pieceTypes.map((tp) => (
+            <radialGradient key={`sph-${tp}`} id={`sphere-${tp.replace(/\s+/g, "-")}`} cx="34%" cy="28%" r="82%">
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="20%" stopColor={line.pieceColors[tp] || "#9bd11e"} />
+              <stop offset="100%" stopColor="#0a0c07" />
+            </radialGradient>
+          ))}
+          <radialGradient id="sphere-green" cx="34%" cy="28%" r="82%">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="20%" stopColor="#a6d62a" />
+            <stop offset="100%" stopColor="#0a0c07" />
+          </radialGradient>
+          {/* Caras del cubo con iluminación direccional (volumen) */}
+          <linearGradient id="cubeTopG" x1="0" y1="0" x2="0.3" y2="1">
+            <stop offset="0%" stopColor="#d4f072" />
+            <stop offset="100%" stopColor="#7fa31a" />
+          </linearGradient>
+          <linearGradient id="cubeLeftG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#9ec92a" />
+            <stop offset="100%" stopColor="#3a500c" />
+          </linearGradient>
+          <linearGradient id="cubeRightG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#5f8011" />
+            <stop offset="100%" stopColor="#222f06" />
+          </linearGradient>
+          {/* Madera de tarima con volumen */}
+          <linearGradient id="woodTopG" x1="0" y1="0" x2="0.4" y2="1">
+            <stop offset="0%" stopColor="#c08544" />
+            <stop offset="100%" stopColor="#8a5a2b" />
+          </linearGradient>
         </defs>
 
         {/* Conectores que las bolitas siguen */}
-        <g stroke="#888780" strokeWidth="1.5" fill="none">
+        <g stroke="#94C11C" strokeWidth="1.4" fill="none" opacity="0.6" filter="url(#lineGlow)">
           {(() => {
             const first = stations[0];
             return first ? (
-              <path d={`M 60 180 C 90 180, ${first.x - ST_A - 30} ${first.y}, ${first.x - ST_A} ${first.y}`} markerEnd="url(#arrow)" />
+              <path className="flow-line" d={`M 60 180 C 90 180, ${first.x - ST_A - 30} ${first.y}, ${first.x - ST_A} ${first.y}`} markerEnd="url(#arrow)" />
             ) : null;
           })()}
           {deriveEdges(line.routes).map(({ from, to }) => {
@@ -754,7 +792,7 @@ export function PlantLayout({
             const b = stations.find((s) => s.id === to);
             if (!a || !b) return null;
             const cv = curveH(a.x + ST_A, a.y, b.x - ST_A, b.y);
-            return <path key={`${from}-${to}`} d={curveStr(cv)} markerEnd="url(#arrow)" />;
+            return <path className="flow-line" key={`${from}-${to}`} d={curveStr(cv)} markerEnd="url(#arrow)" />;
           })}
         </g>
 
@@ -782,10 +820,10 @@ export function PlantLayout({
           const f = cubeFaces(40, 180, 18, 9, 22);
           return (
             <g>
-              <polygon points={f.left} fill="#B9B7AD" stroke="#888780" strokeWidth="0.8" />
-              <polygon points={f.right} fill="#A4A299" stroke="#888780" strokeWidth="0.8" />
-              <polygon points={f.top} fill="#D3D1C7" stroke="#FFFFFF" strokeWidth="0.8" />
-              <text x="40" y="216" textAnchor="middle" fontSize="10" fill="#5F5E5A">Entrada</text>
+              <polygon points={f.left} fill="#1c2114" stroke="#94C11C" strokeWidth="0.8" />
+              <polygon points={f.right} fill="#141810" stroke="#94C11C" strokeWidth="0.8" />
+              <polygon points={f.top} fill="#2a331c" stroke="#94C11C" strokeWidth="0.8" />
+              <text x="40" y="216" textAnchor="middle" fontSize="10" fill="#9AA17F">Entrada</text>
             </g>
           );
         })()}
@@ -803,6 +841,15 @@ export function PlantLayout({
           const capY = nameY + (twoLines ? 20 : 10);
           return (
             <g key={s.id}>
+              {/* sombra de contacto (profundidad) */}
+              <ellipse
+                cx={s.x}
+                cy={s.y + ST_B + ST_H / 2 + 1}
+                rx={ST_A * 0.92}
+                ry={ST_B * 0.8}
+                fill="#000000"
+                opacity="0.4"
+              />
               {/* bolitas de ocupacion dentro del cubo */}
               {occDraw.map((c) => (
                 <circle
@@ -812,16 +859,15 @@ export function PlantLayout({
                   cx={c.x}
                   cy={c.y}
                   r={ESTACK.r}
-                  fill={KPI_GREEN}
-                  stroke={KPI_DARK}
-                  strokeWidth="0.4"
+                  fill="url(#sphere-green)"
+                  stroke="none"
                   opacity="0"
                 />
               ))}
-              {/* vidrio translucido */}
-              <polygon points={f.top} fill={KPI_DARK} fillOpacity="0.05" />
-              <polygon points={f.left} fill={KPI_DARK} fillOpacity="0.13" />
-              <polygon points={f.right} fill={KPI_DARK} fillOpacity="0.18" />
+              {/* vidrio translucido con volumen (neón sobre carbón) */}
+              <polygon points={f.top} fill="url(#cubeTopG)" fillOpacity="0.26" />
+              <polygon points={f.left} fill="url(#cubeLeftG)" fillOpacity="0.22" />
+              <polygon points={f.right} fill="url(#cubeRightG)" fillOpacity="0.3" />
               {/* aristas verde KPI */}
               <polygon id={`cube-top-${s.id}`} points={f.top} fill="none" stroke={KPI_GREEN} strokeWidth="1.3" />
               <polygon points={f.left} fill="none" stroke={KPI_GREEN} strokeWidth="1.3" />
@@ -829,39 +875,39 @@ export function PlantLayout({
               {/* nombre + capacidad arriba */}
               {twoLines ? (
                 <>
-                  <text x={s.x} y={nameY} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#1C1C1A">{line1}</text>
-                  <text x={s.x} y={nameY + 10} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#1C1C1A">{line2}</text>
+                  <text x={s.x} y={nameY} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#DCE3CC">{line1}</text>
+                  <text x={s.x} y={nameY + 10} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#DCE3CC">{line2}</text>
                 </>
               ) : (
-                <text x={s.x} y={nameY} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#1C1C1A">{s.name}</text>
+                <text x={s.x} y={nameY} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#DCE3CC">{s.name}</text>
               )}
-              <text x={s.x} y={capY} textAnchor="middle" fontSize="8" fontWeight="600" fill="#6F9213">
+              <text x={s.x} y={capY} textAnchor="middle" fontSize="8" fontWeight="600" fill="#94C11C">
                 {Math.round(stationCapacity(s))}/t
               </text>
               {/* pendiente + ocupacion debajo */}
-              <text x={s.x} y={s.y + ST_B + ST_H / 2 + 12} textAnchor="middle" fontSize="9" fill="#5F5E5A">
+              <text x={s.x} y={s.y + ST_B + ST_H / 2 + 12} textAnchor="middle" fontSize="9" fill="#8A9072">
                 Pend:{" "}
-                <tspan id={`q-${s.id}`} fontWeight="600" fill="#1C1C1A">0</tspan> · Ocup.{" "}
-                <tspan id={`u-${s.id}`} fontWeight="700" fill="#6F9213">0%</tspan>
+                <tspan id={`q-${s.id}`} fontWeight="600" fill="#DCE3CC">0</tspan> · Ocup.{" "}
+                <tspan id={`u-${s.id}`} fontWeight="700" fill="#94C11C">0%</tspan>
               </text>
             </g>
           );
         })}
 
         {/* Bolitas en movimiento */}
-        <g ref={layerRef} />
+        <g ref={layerRef} filter="url(#ballGlow)" />
 
         {/* Badge cuello de botella */}
         <g id="bn-badge" style={{ display: "none" }}>
-          <rect x="0" y="0" width="120" height="20" rx="10" fill="#A32D2D" />
-          <text x="60" y="13" textAnchor="middle" fontSize="10" fontWeight="600" fill="white">CUELLO DE BOTELLA</text>
+          <rect className="animate-pulse" x="0" y="0" width="120" height="20" rx="3" fill="#A32D2D" stroke="#EF9F27" strokeWidth="1" />
+          <text x="60" y="13" textAnchor="middle" fontSize="10" fontWeight="700" fill="white" style={{ letterSpacing: "0.08em" }}>CUELLO DE BOTELLA</text>
         </g>
 
         {/* Leyenda: una sola corrida en modo "or"; por componente en "and" */}
         {line.assembly === "or" ? (
           <g>
             <circle cx={40} cy={LEGEND_Y} r="4" fill={line.pieceColors[line.pieceTypes[0]] || "#1C1C1A"} stroke="#FFFFFF" strokeWidth="0.8" />
-            <text x={50} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A" style={{ textTransform: "capitalize" }}>{line.unit}</text>
+            <text x={50} y={LEGEND_Y + 3} fontSize="9" fill="#9AA17F" style={{ textTransform: "capitalize" }}>{line.unit}</text>
           </g>
         ) : (
           line.pieceTypes.map((tp, i) => {
@@ -869,16 +915,16 @@ export function PlantLayout({
             return (
               <g key={`leg-${tp}`}>
                 <circle cx={lx} cy={LEGEND_Y} r="4" fill={line.pieceColors[tp] || "#888780"} stroke="#FFFFFF" strokeWidth="0.8" />
-                <text x={lx + 10} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A" style={{ textTransform: "capitalize" }}>{tp}</text>
+                <text x={lx + 10} y={LEGEND_Y + 3} fontSize="9" fill="#9AA17F" style={{ textTransform: "capitalize" }}>{tp}</text>
               </g>
             );
           })
         )}
-        <text x={line.assembly === "or" ? 172 : 40 + line.pieceTypes.length * 132} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Cada bolita = {line.ballUnits} unidades</text>
+        <text x={line.assembly === "or" ? 172 : 40 + line.pieceTypes.length * 132} y={LEGEND_Y + 3} fontSize="9" fill="#9AA17F">Cada bolita = {line.ballUnits} unidades</text>
 
         {/* Titulo zona de tarimas */}
-        <text x="20" y={TITLE_Y} fontSize="11" fontWeight="700" fill="#1C1C1A">PRODUCTO TERMINADO</text>
-        <text id="pallet-summary" x="200" y={TITLE_Y} fontSize="10" fill="#5F5E5A">
+        <text x="20" y={TITLE_Y} fontSize="11" fontWeight="700" fill="#DCE3CC">PRODUCTO TERMINADO</text>
+        <text id="pallet-summary" x="200" y={TITLE_Y} fontSize="10" fill="#9AA17F">
           Tarimas llenas: 0/{nPal} · 0 marcos terminados
         </text>
 
@@ -912,22 +958,23 @@ export function PlantLayout({
                   cx={c.x}
                   cy={c.y}
                   r={PSTACK.r}
-                  fill="#94C11C"
-                  stroke="#FFFFFF"
-                  strokeWidth="0.6"
+                  fill="url(#sphere-green)"
+                  stroke="none"
                   opacity="0"
                 />
               ))}
+              {/* sombra de contacto bajo la tarima */}
+              <ellipse cx={cx} cy={baseY + wB + 6} rx={wA + 4} ry={wB * 0.55} fill="#000000" opacity="0.38" />
               <polygon
                 points={`${cx},${baseY + wB} ${cx + wA},${baseY} ${cx},${baseY - wB} ${cx - wA},${baseY}`}
-                fill="#A06A33"
+                fill="url(#woodTopG)"
                 stroke="#6E4420"
                 strokeWidth="0.8"
               />
               <polygon points={`${cx - wA},${baseY} ${cx},${baseY + wB} ${cx},${baseY + wB + 7} ${cx - wA},${baseY + 7}`} fill="#6E4420" />
               <polygon points={`${cx},${baseY + wB} ${cx + wA},${baseY} ${cx + wA},${baseY + 7} ${cx},${baseY + wB + 7}`} fill="#5A3618" />
-              <text x={cx} y={baseY + wB + 22} textAnchor="middle" fontSize="9" fontWeight="600" fill="#1C1C1A">Tarima {pi + 1}</text>
-              <text id={`pallet-lbl-${pi}`} x={cx} y={baseY + wB + 33} textAnchor="middle" fontSize="9" fill="#5F5E5A">0/{line.palletSize}</text>
+              <text x={cx} y={baseY + wB + 22} textAnchor="middle" fontSize="9" fontWeight="600" fill="#DCE3CC">Tarima {pi + 1}</text>
+              <text id={`pallet-lbl-${pi}`} x={cx} y={baseY + wB + 33} textAnchor="middle" fontSize="9" fill="#9AA17F">0/{line.palletSize}</text>
             </g>
           );
         })}

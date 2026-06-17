@@ -72,29 +72,40 @@ export function KpiStrip({ line, stations, params, result }: Props) {
   ];
 
   return (
-    <div className="mb-4 overflow-hidden rounded-xl border border-mimsa-green/30 bg-mimsa-black shadow-sm">
-      <div className="grid grid-cols-2 gap-x-2 gap-y-4 p-4 sm:grid-cols-3 lg:grid-cols-7">
+    <div className="hud-panel hud-bracket mb-4 overflow-hidden">
+      {/* Cabecera de telemetría */}
+      <div className="flex items-center justify-between border-b border-mimsa-green/15 px-5 py-1.5">
+        <span className="hud-label text-[9px] text-mimsa-green/70">
+          MIMSA · Telemetría de línea
+        </span>
+        <span className="flex items-center gap-1.5 hud-label text-[9px] text-mimsa-grayLight">
+          <span className="h-1.5 w-1.5 rounded-full bg-mimsa-green shadow-glow-sm animate-pulse" />
+          En vivo
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-2 gap-y-5 px-5 py-5 sm:grid-cols-3 lg:grid-cols-7">
         {kpis.map((k, i) => (
           <div
             key={k.label}
-            className={`flex min-w-0 flex-col items-center justify-center px-1 text-center ${
-              i > 0 ? "lg:border-l lg:border-white/10" : ""
+            className={`relative flex min-w-0 flex-col items-center justify-center px-2 text-center ${
+              i > 0 ? "lg:border-l lg:border-mimsa-green/15" : ""
             }`}
           >
-            <span className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-mimsa-grayLight">
+            <span className="mb-1.5 hud-label text-[9.5px] font-semibold text-mimsa-grayLight">
               {k.label}
             </span>
             <span
-              className={`w-full font-mono font-bold text-mimsa-green ${
+              className={`hud-glow w-full font-mono font-bold text-mimsa-green ${
                 k.small
                   ? "text-sm leading-tight break-words hyphens-auto"
-                  : "text-2xl leading-none"
+                  : "text-[26px] leading-none"
               }`}
             >
               {k.value}
             </span>
             {k.unit && (
-              <span className="mt-1.5 text-[10px] leading-tight text-mimsa-green/70">
+              <span className="mt-1.5 text-[10px] leading-tight text-mimsa-green/60">
                 {k.unit}
               </span>
             )}
