@@ -83,8 +83,8 @@ const PAL_PER_ROW = 4;
 const PSTACK = { nx: 3, ny: 3, nz: 5, stepX: 7.5, stepY: 3.6, stepZ: 6.4, r: 3.1 };
 const PAL_CAP = PSTACK.nx * PSTACK.ny * PSTACK.nz;
 
-function palletCount(target: number): number {
-  return Math.max(1, Math.ceil(target / PALLET_SIZE));
+function palletCount(target: number, palletSize: number): number {
+  return Math.max(1, Math.ceil(target / palletSize));
 }
 
 function palletGeom(i: number, n: number) {
@@ -98,8 +98,8 @@ function palletGeom(i: number, n: number) {
   return { cx, baseY };
 }
 
-function viewBoxHeight(target: number): number {
-  const rows = Math.ceil(palletCount(target) / PAL_PER_ROW);
+function viewBoxHeight(target: number, palletSize: number): number {
+  const rows = Math.ceil(palletCount(target, palletSize) / PAL_PER_ROW);
   return PALLET_TOP + 70 + (rows - 1) * PAL_ROW_H + 78;
 }
 
@@ -197,7 +197,7 @@ export function PlantLayout({
   const speedRef = useRef(speed);
   const runningRef = useRef(running);
   const modeRef = useRef(mode);
-  const nPalletsRef = useRef(palletCount(target));
+  const nPalletsRef = useRef(palletCount(target, line.palletSize));
 
   const simRef = useRef({
     pieces: [] as Piece[],
@@ -205,6 +205,7 @@ export function PlantLayout({
     simTime: 0,
     completed: 0,
     nextArrival: 0,
+    arrivalCount: 0,
     stats: {} as Record<string, StatBucket>,
     buffer: {} as Record<string, number>,
     lastTick: 0,
@@ -216,7 +217,7 @@ export function PlantLayout({
   targetRef.current = target;
   speedRef.current = speed;
   modeRef.current = mode;
-  nPalletsRef.current = palletCount(target);
+  nPalletsRef.current = palletCount(target, line.palletSize);
 
   function resetStats() {
     const stats: Record<string, StatBucket> = {};
@@ -322,22 +323,42 @@ export function PlantLayout({
   function loadStations() {
     clearAll();
     const sim = simRef.current;
-    const nB = Math.max(1, Math.round(targetRef.current / BATCH));
+    const ballU = lineRef.current.ballUnits;
+    const andMode = lineRef.current.assembly === "and";
     stationsRef.current.forEach((s) => {
-      const total = nB * s.handles.length;
-      let slot = 0;
-      for (let k = 0; k < nB; k++) {
-        s.handles.forEach((type) => {
+      const share = s.flowShare && s.flowShare > 0 ? s.flowShare : 1;
+      const nB = Math.max(1, Math.round((targetRef.current * share) / ballU));
+      if (andMode) {
+        const total = nB * s.handles.length;
+        let slot = 0;
+        for (let k = 0; k < nB; k++) {
+          s.handles.forEach((type) => {
+            const p = makePiece(type);
+            p.stationId = s.id;
+            p.slot = slot++;
+            p.total = total;
+            p.state = "queue";
+            const pos = queuePos(s, p.slot, total);
+            setPos(p, pos.x, pos.y);
+            sim.stats[s.id].queue.push(p);
+            sim.pieces.push(p);
+          });
+        }
+      } else {
+        // "or": una sola corriente repartida entre los tipos de la estacion
+        const total = nB;
+        for (let k = 0; k < nB; k++) {
+          const type = s.handles[k % s.handles.length];
           const p = makePiece(type);
           p.stationId = s.id;
-          p.slot = slot++;
+          p.slot = k;
           p.total = total;
           p.state = "queue";
           const pos = queuePos(s, p.slot, total);
           setPos(p, pos.x, pos.y);
           sim.stats[s.id].queue.push(p);
           sim.pieces.push(p);
-        });
+        }
       }
     });
     paint();
@@ -361,14 +382,15 @@ export function PlantLayout({
     st.serving = p;
     p.state = "serve";
     p.t = 0;
-    const effRate = s.ratePerHour * (s.handles.length || 1);
-    p.serviceTime = effRate > 0 ? BATCH / effRate : 999;
+    const mult = lineRef.current.assembly === "and" ? (s.handles.length || 1) : 1;
+    const effRate = s.ratePerHour * mult;
+    p.serviceTime = effRate > 0 ? lineRef.current.ballUnits / effRate : 999;
   }
 
   function activePalletGeom() {
     const sim = simRef.current;
     const nPal = nPalletsRef.current;
-    return palletGeom(Math.min(nPal - 1, Math.floor(sim.completed / PALLET_SIZE)), nPal);
+    return palletGeom(Math.min(nPal - 1, Math.floor(sim.completed / lineRef.current.palletSize)), nPal);
   }
 
   function stepCarga(dt: number) {
@@ -398,7 +420,9 @@ export function PlantLayout({
         p.t += dt;
         if (p.t >= p.serviceTime) {
           st.serving = null;
-          if (s.id === "embolsado") {
+          const routeC = lineRef.current.routes[p.type] || [];
+          const isLastC = routeC.length > 0 && routeC[routeC.length - 1] === s.id;
+          if (isLastC) {
             const g = activePalletGeom();
             setTravel(p, arrowToPallet(s.x, s.y + ST_B, g.cx, g.baseY));
             p.state = "toPallet";
@@ -434,21 +458,30 @@ export function PlantLayout({
     const t = sim.simTime;
     const tgt = targetRef.current;
 
-    const arrivalsPerHour = tgt / TURN_HOURS / BATCH;
+    const arrivalsPerHour = tgt / TURN_HOURS / lineRef.current.ballUnits;
     const arrivalInterval = arrivalsPerHour > 0 ? 1 / arrivalsPerHour : Infinity;
     const types = lineRef.current.pieceTypes;
+    const andMode = lineRef.current.assembly === "and";
+    const spawn = (type: string) => {
+      const route = lineRef.current.routes[type] || [];
+      const first = route.length ? stationById(route[0]) : null;
+      if (!first) return;
+      const oy = 180 + typeOffset(type);
+      const p = makePiece(type);
+      p.stage = 0;
+      setPos(p, 60, oy);
+      setTravel(p, curveH(60, oy, first.x - ST_A, first.y));
+      sim.pieces.push(p);
+    };
     while (t >= sim.nextArrival && t < TURN_HOURS) {
-      types.forEach((type) => {
-        const route = lineRef.current.routes[type] || [];
-        const first = route.length ? stationById(route[0]) : null;
-        if (!first) return;
-        const oy = 180 + typeOffset(type);
-        const p = makePiece(type);
-        p.stage = 0;
-        setPos(p, 60, oy);
-        setTravel(p, curveH(60, oy, first.x - ST_A, first.y));
-        sim.pieces.push(p);
-      });
+      if (andMode) {
+        // ensamble: cada llegada aporta 1 de cada tipo (se emparejan al final)
+        types.forEach(spawn);
+      } else {
+        // vias paralelas 50/50: una bolita por llegada, alternando tipo
+        spawn(types[sim.arrivalCount % types.length]);
+        sim.arrivalCount++;
+      }
       sim.nextArrival += arrivalInterval;
     }
 
@@ -467,8 +500,9 @@ export function PlantLayout({
       }
       if (p.stage >= route.length) {
         const g = activePalletGeom();
-        const emb = stationById("embolsado")!;
-        setTravel(p, arrowToPallet(emb.x, emb.y + ST_B, g.cx, g.baseY));
+        const lastId = route[route.length - 1];
+        const last = stationById(lastId) || stationsRef.current[stationsRef.current.length - 1];
+        setTravel(p, arrowToPallet(last.x, last.y + ST_B, g.cx, g.baseY));
         p.state = "toPallet";
         continue;
       }
@@ -515,11 +549,17 @@ export function PlantLayout({
 
   function depositPallet(p: Piece, i: number) {
     const sim = simRef.current;
-    sim.buffer[p.type] = (sim.buffer[p.type] || 0) + 1;
-    const types = lineRef.current.pieceTypes;
-    while (types.every((tp) => (sim.buffer[tp] || 0) > 0)) {
-      types.forEach((tp) => (sim.buffer[tp] = (sim.buffer[tp] || 0) - 1));
-      sim.completed += BATCH;
+    if (lineRef.current.assembly === "or") {
+      // cada bolita que llega es producto terminado
+      sim.completed += lineRef.current.ballUnits;
+    } else {
+      // ensamble: se requiere 1 de cada tipo para completar el lote
+      sim.buffer[p.type] = (sim.buffer[p.type] || 0) + 1;
+      const types = lineRef.current.pieceTypes;
+      while (types.every((tp) => (sim.buffer[tp] || 0) > 0)) {
+        types.forEach((tp) => (sim.buffer[tp] = (sim.buffer[tp] || 0) - 1));
+        sim.completed += lineRef.current.ballUnits;
+      }
     }
     removePiece(p);
     sim.pieces.splice(i, 1);
@@ -572,26 +612,28 @@ export function PlantLayout({
     const nPal = nPalletsRef.current;
     let fullPallets = 0;
     for (let pi = 0; pi < nPal; pi++) {
-      const fill = Math.max(0, Math.min(PALLET_SIZE, sim.completed - pi * PALLET_SIZE));
-      if (fill >= PALLET_SIZE) fullPallets++;
-      const nShow = Math.round((fill / PALLET_SIZE) * PAL_CAP);
+      const palletSize = lineRef.current.palletSize;
+      const fill = Math.max(0, Math.min(palletSize, sim.completed - pi * palletSize));
+      if (fill >= palletSize) fullPallets++;
+      const nShow = Math.round((fill / palletSize) * PAL_CAP);
       const nodes = svg.querySelectorAll(`[data-pal="${pi}"]`);
       nodes.forEach((node) => {
         const fo = Number((node as SVGElement).getAttribute("data-fo"));
         (node as SVGElement).setAttribute("opacity", fo < nShow ? "1" : "0");
       });
       const lbl = svg.querySelector(`#pallet-lbl-${pi}`);
-      if (lbl) lbl.textContent = `${Math.round(fill)}/${PALLET_SIZE}`;
+      if (lbl) lbl.textContent = `${Math.round(fill)}/${lineRef.current.palletSize}`;
     }
     const sum = svg.querySelector("#pallet-summary");
     if (sum)
       sum.textContent = `Tarimas llenas: ${fullPallets}/${nPal} · ${sim.completed.toLocaleString(
         "es-MX"
-      )} marcos terminados`;
+      )} ${lineRef.current.unit} terminadas`;
 
     // Flecha que apunta a la tarima que se esta llenando
     const arrow = svg.querySelector("#pallet-arrow") as SVGPathElement | null;
-    const emb = stationById("embolsado");
+    const lastR = lineRef.current.routes[lineRef.current.pieceTypes[0]] || [];
+    const emb = lastR.length ? stationById(lastR[lastR.length - 1]) : undefined;
     if (arrow && emb) {
       const g = activePalletGeom();
       arrow.setAttribute("d", curveStr(arrowToPallet(emb.x, emb.y + ST_B, g.cx, g.baseY)));
@@ -680,8 +722,8 @@ export function PlantLayout({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const nPal = palletCount(target);
-  const vbH = viewBoxHeight(target);
+  const nPal = palletCount(target, line.palletSize);
+  const vbH = viewBoxHeight(target, line.palletSize);
 
   return (
     <div className="rounded-lg border border-mimsa-line bg-mimsa-bg p-2">
@@ -714,7 +756,8 @@ export function PlantLayout({
 
         {/* Flecha dinamica a la tarima activa */}
         {(() => {
-          const emb = stations.find((s) => s.id === "embolsado");
+          const lastR0 = line.routes[line.pieceTypes[0]] || [];
+          const emb = lastR0.length ? stations.find((s) => s.id === lastR0[lastR0.length - 1]) : undefined;
           const g = palletGeom(0, nPal);
           if (!emb) return null;
           return (
@@ -820,7 +863,7 @@ export function PlantLayout({
             </g>
           );
         })}
-        <text x={40 + line.pieceTypes.length * 132} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Cada bolita = 90 unidades</text>
+        <text x={40 + line.pieceTypes.length * 132} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Cada bolita = {line.ballUnits} unidades</text>
 
         {/* Titulo zona de tarimas */}
         <text x="20" y={TITLE_Y} fontSize="11" fontWeight="700" fill="#1C1C1A">PRODUCTO TERMINADO</text>
@@ -873,7 +916,7 @@ export function PlantLayout({
               <polygon points={`${cx - wA},${baseY} ${cx},${baseY + wB} ${cx},${baseY + wB + 7} ${cx - wA},${baseY + 7}`} fill="#6E4420" />
               <polygon points={`${cx},${baseY + wB} ${cx + wA},${baseY} ${cx + wA},${baseY + 7} ${cx},${baseY + wB + 7}`} fill="#5A3618" />
               <text x={cx} y={baseY + wB + 22} textAnchor="middle" fontSize="9" fontWeight="600" fill="#1C1C1A">Tarima {pi + 1}</text>
-              <text id={`pallet-lbl-${pi}`} x={cx} y={baseY + wB + 33} textAnchor="middle" fontSize="9" fill="#5F5E5A">0/{PALLET_SIZE}</text>
+              <text id={`pallet-lbl-${pi}`} x={cx} y={baseY + wB + 33} textAnchor="middle" fontSize="9" fill="#5F5E5A">0/{line.palletSize}</text>
             </g>
           );
         })}

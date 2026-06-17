@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Station,
   GlobalParams,
   ProductionLine,
+  FibrexOptions,
+  FIBREX_DEFAULTS,
+  makeFibrexLine,
   evaluate,
 } from "@/lib/simulation";
 import { MimsaLogo } from "./MimsaLogo";
@@ -15,12 +18,30 @@ import { StaffingPanel } from "./StaffingPanel";
 import { ResultsPanel } from "./ResultsPanel";
 
 export function Simulator({ line }: { line: ProductionLine }) {
-  const [stations, setStations] = useState<Station[]>(() => line.makeStations());
-  const [params, setParams] = useState<GlobalParams>(() => line.makeParams());
+  const [fibrexOpts, setFibrexOpts] = useState<FibrexOptions>(FIBREX_DEFAULTS);
+
+  // Linea efectiva: para Fibrex se reconstruye segun las opciones elegidas
+  // (pegado / escuadradora / 2a pintura); las demas lineas pasan tal cual.
+  const effLine = useMemo<ProductionLine>(
+    () => (line.id === "fibrex" ? makeFibrexLine(fibrexOpts) : line),
+    [line, fibrexOpts]
+  );
+
+  const [stations, setStations] = useState<Station[]>(() => effLine.makeStations());
+  const [params, setParams] = useState<GlobalParams>(() => effLine.makeParams());
   const [running, setRunning] = useState(false);
   const [speed, setSpeed] = useState(3);
   const [startMode, setStartMode] = useState<"carga" | "transitorio">("carga");
   const [live, setLive] = useState({ hour: 0, completed: 0, wip: 0 });
+
+  // Al cambiar las opciones de Fibrex, regenera estaciones y reinicia.
+  useEffect(() => {
+    setStations(effLine.makeStations());
+    setRunning(false);
+    setLive({ hour: 0, completed: 0, wip: 0 });
+    window.dispatchEvent(new Event("mimsa-reset"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effLine]);
 
   const result = useMemo(() => evaluate(stations, params), [stations, params]);
 
@@ -76,19 +97,19 @@ export function Simulator({ line }: { line: ProductionLine }) {
             Simulador de Producción
           </h1>
           <p className="text-[11px] tracking-wide text-mimsa-green">
-            {line.name.toUpperCase()} · ANÁLISIS DE CUELLOS DE BOTELLA
+            {effLine.name.toUpperCase()} · ANÁLISIS DE CUELLOS DE BOTELLA
           </p>
         </div>
       </header>
 
       {/* Cintilla de KPIs principales */}
-      <KpiStrip line={line} stations={stations} params={params} result={result} />
+      <KpiStrip line={effLine} stations={stations} params={params} result={result} />
 
       {/* Parametros globales */}
       <section className="mb-4 grid gap-3 rounded-lg bg-mimsa-bgAlt p-4 sm:grid-cols-3">
         <label className="flex flex-col gap-1.5">
           <span className="text-[11px] font-medium uppercase tracking-wide text-mimsa-gray">
-            Objetivo marcos/turno
+            Objetivo {effLine.unit}/turno
           </span>
           <div className="flex items-center gap-3">
             <input
@@ -150,6 +171,71 @@ export function Simulator({ line }: { line: ProductionLine }) {
         </label>
       </section>
 
+      {/* Opciones especificas de la linea Fibrex */}
+      {line.id === "fibrex" && (
+        <section className="mb-4 grid gap-3 rounded-lg border border-mimsa-green/30 bg-mimsa-greenLight p-4 sm:grid-cols-3">
+          <div className="sm:col-span-3 -mb-1 flex items-center gap-2">
+            <span className="rounded bg-mimsa-green px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-mimsa-black">
+              Configuración Fibrex
+            </span>
+            <span className="text-[11px] text-mimsa-gray">
+              Cambia el tipo de proceso y observa cómo se mueve el cuello de botella
+            </span>
+          </div>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-mimsa-gray">
+              Pegado
+            </span>
+            <select
+              value={fibrexOpts.pegado}
+              onChange={(e) =>
+                setFibrexOpts((o) => ({ ...o, pegado: e.target.value as FibrexOptions["pegado"] }))
+              }
+              className="rounded-md border border-mimsa-line bg-white px-2 py-2 text-sm font-medium text-mimsa-black outline-none focus:border-mimsa-green"
+            >
+              <option value="normal">Puerta Lisa Normal — 3 personas · 1,144/turno</option>
+              <option value="bostoniano">Bostoniano (Extras) — 6 personas · 624/turno</option>
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-mimsa-gray">
+              Escuadradora
+            </span>
+            <select
+              value={fibrexOpts.escuadra}
+              onChange={(e) =>
+                setFibrexOpts((o) => ({ ...o, escuadra: e.target.value as FibrexOptions["escuadra"] }))
+              }
+              className="rounded-md border border-mimsa-line bg-white px-2 py-2 text-sm font-medium text-mimsa-black outline-none focus:border-mimsa-green"
+            >
+              <option value="normal">Escuadradora — 4 personas · 780/turno</option>
+              <option value="doble">Doble Paso (Extras) — 6 personas · 1,560/turno</option>
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-mimsa-gray">
+              Pintura de Cantos
+            </span>
+            <button
+              type="button"
+              onClick={() => setFibrexOpts((o) => ({ ...o, pintura2: !o.pintura2 }))}
+              className={`rounded-md border px-2 py-2 text-sm font-medium transition-colors ${
+                fibrexOpts.pintura2
+                  ? "border-mimsa-green bg-mimsa-green text-mimsa-black"
+                  : "border-mimsa-line bg-white text-mimsa-black hover:border-mimsa-green"
+              }`}
+            >
+              {fibrexOpts.pintura2
+                ? "● 2 líneas en paralelo (1,560/turno)"
+                : "○ 1 línea (780/turno) — clic para 2ª"}
+            </button>
+          </label>
+        </section>
+      )}
+
       {/* Controles de animacion */}
       <section className="mb-4 flex flex-wrap items-center gap-3">
         <button
@@ -202,7 +288,8 @@ export function Simulator({ line }: { line: ProductionLine }) {
           </span>
           <span className="text-mimsa-green/40">·</span>
           <span>
-            Marcos <span className="text-white">{live.completed}</span>
+            <span className="capitalize">{effLine.unit}</span>{" "}
+            <span className="text-white">{live.completed}</span>
           </span>
           <span className="text-mimsa-green/40">·</span>
           <span>
@@ -214,7 +301,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
       {/* Plano animado */}
       <section className="mb-4">
         <PlantLayout
-          line={line}
+          line={effLine}
           stations={stations}
           target={params.targetMarcos}
           running={running}
@@ -226,7 +313,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
 
       {/* Comparativo de plantilla */}
       <section className="mb-4">
-        <StaffingPanel line={line} stations={stations} />
+        <StaffingPanel line={effLine} stations={stations} />
       </section>
 
       {/* Resultados */}
@@ -245,7 +332,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
             Estaciones — edita personas, ritmo y horas
           </h2>
           <span className="text-[11px] text-mimsa-gray">
-            Capacidad = marcos/hora × horas
+            Capacidad = {effLine.unit}/hora × horas
           </span>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -262,8 +349,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
 
       <footer className="mt-6 border-t border-mimsa-line pt-4 text-center text-[11px] text-mimsa-gray">
         MIMSA · Manufactura Integral de Marcos y Soluciones de Acero — Simulador
-        de línea de Marcos Metálicos. Datos base del análisis de tiempos por
-        estación.
+        de {effLine.name}. Datos base del análisis de tiempos por estación.
       </footer>
     </div>
   );

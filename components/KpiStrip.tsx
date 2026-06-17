@@ -27,12 +27,12 @@ export function KpiStrip({ line, stations, params, result }: Props) {
     {
       label: "Capacidad / turno",
       value: Math.round(result.effectiveCapacity).toLocaleString("es-MX"),
-      unit: "marcos",
+      unit: line.unit,
     },
     {
       label: "Proyección mensual",
       value: Math.round(result.monthlyCapacity).toLocaleString("es-MX"),
-      unit: `marcos · ${params.workingDays} días`,
+      unit: `${line.unit} · ${params.workingDays} días`,
     },
     {
       label: "Cuello de botella",
@@ -56,11 +56,17 @@ export function KpiStrip({ line, stations, params, result }: Props) {
       value: String(stations.length),
       unit: "serie y paralelo",
     },
-    {
-      label: "Piezas por marco",
-      value: "2",
-      unit: "bisagra + embutido",
-    },
+    line.assembly === "and"
+      ? {
+          label: "Componentes",
+          value: String(line.pieceTypes.length),
+          unit: line.pieceTypes.join(" + "),
+        }
+      : {
+          label: "Flujo dividido",
+          value: `${line.pieceTypes.length} vías`,
+          unit: "50 / 50 en paralelo",
+        },
   ];
 
   return (
