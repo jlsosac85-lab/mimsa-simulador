@@ -19,6 +19,11 @@ const config: Config = {
           line: "#E5E5DC",
           bg: "#FAFAF7",
           bgAlt: "#F4F3EE",
+          // Capas HUD (modo oscuro futurista, manteniendo el verde MIMSA)
+          deep: "#0E100B",
+          panel: "#15170F",
+          panelHi: "#1C1F15",
+          edge: "#2E3322",
         },
         alert: {
           red: "#A32D2D",
@@ -29,6 +34,11 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
+        display: ["var(--font-display)", "var(--font-inter)", "sans-serif"],
+      },
+      boxShadow: {
+        glow: "0 0 0 1px rgba(148,193,28,0.25), 0 0 18px -2px rgba(148,193,28,0.35)",
+        "glow-sm": "0 0 10px -1px rgba(148,193,28,0.45)",
       },
     },
   },
