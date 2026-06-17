@@ -224,10 +224,10 @@ function panelStations(): Station[] {
     { id: "guillotina", name: "Guillotina", people: 1, ratePerHour: 400 / 11, hours: 11, x: 225, y: 180, fill: "#94C11C", handles: [PANEL_A, PANEL_B] },
     { id: "despunte", name: "Despunte y Rolado", people: 1, ratePerHour: 400 / 11, hours: 11, x: 350, y: 180, fill: "#94C11C", handles: [PANEL_A, PANEL_B] },
     { id: "doblez", name: "Doblez", people: 1, ratePerHour: 400 / 11, hours: 11, x: 475, y: 180, fill: "#94C11C", handles: [PANEL_A, PANEL_B] },
-    { id: "mesa-1", name: "Mesa Armado 1", people: 2, ratePerHour: 200 / 11, hours: 11, x: 600, y: 100, fill: "#1C1C1A", handles: [PANEL_A], flowShare: 0.5 },
-    { id: "prensa-1", name: "Prensa Espumadora 1", people: 3, ratePerHour: 200 / 11, hours: 11, x: 715, y: 100, fill: "#1C1C1A", handles: [PANEL_A], flowShare: 0.5 },
-    { id: "mesa-2", name: "Mesa Armado 2", people: 2, ratePerHour: 200 / 11, hours: 11, x: 600, y: 260, fill: "#888780", handles: [PANEL_B], flowShare: 0.5 },
-    { id: "prensa-2", name: "Prensa Espumadora 2", people: 1, ratePerHour: 200 / 11, hours: 11, x: 715, y: 260, fill: "#888780", handles: [PANEL_B], flowShare: 0.5 },
+    { id: "mesa-1", name: "Mesa Armado 1", people: 2, ratePerHour: 200 / 11, hours: 11, x: 600, y: 100, fill: "#94C11C", handles: [PANEL_A], flowShare: 0.5 },
+    { id: "prensa-1", name: "Prensa Espumadora 1", people: 3, ratePerHour: 200 / 11, hours: 11, x: 715, y: 100, fill: "#94C11C", handles: [PANEL_A], flowShare: 0.5 },
+    { id: "mesa-2", name: "Mesa Armado 2", people: 2, ratePerHour: 200 / 11, hours: 11, x: 600, y: 260, fill: "#94C11C", handles: [PANEL_B], flowShare: 0.5 },
+    { id: "prensa-2", name: "Prensa Espumadora 2", people: 1, ratePerHour: 200 / 11, hours: 11, x: 715, y: 260, fill: "#94C11C", handles: [PANEL_B], flowShare: 0.5 },
   ];
 }
 const PANEL_ROUTES: Record<string, string[]> = {
@@ -236,7 +236,7 @@ const PANEL_ROUTES: Record<string, string[]> = {
 };
 const PANEL_COLORS: Record<string, string> = {
   [PANEL_A]: "#1C1C1A",
-  [PANEL_B]: "#888780",
+  [PANEL_B]: "#1C1C1A",
 };
 
 // --- LINEA DE FIBREX (datos reales, con variantes configurables) ---
@@ -272,8 +272,8 @@ export function makeFibrexLine(opts: FibrexOptions = FIBREX_DEFAULTS): Productio
   const stations: Station[] = [
     { id: "corte-madera", name: "Corte Madera", people: 1, ratePerHour: 1040 / 11, hours: 11, x: 90, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] },
     { id: "orificios", name: "Orificios", people: 1, ratePerHour: 1040 / 11, hours: 11, x: 205, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] },
-    { id: "mesa-1", name: "Mesa Armado 1", people: 2, ratePerHour: 520 / 11, hours: 11, x: 325, y: 100, fill: "#1C1C1A", handles: [FIBREX_A], flowShare: 0.5 },
-    { id: "mesa-2", name: "Mesa Armado 2", people: 2, ratePerHour: 520 / 11, hours: 11, x: 325, y: 260, fill: "#888780", handles: [FIBREX_B], flowShare: 0.5 },
+    { id: "mesa-1", name: "Mesa Armado 1", people: 2, ratePerHour: 520 / 11, hours: 11, x: 325, y: 100, fill: "#94C11C", handles: [FIBREX_A], flowShare: 0.5 },
+    { id: "mesa-2", name: "Mesa Armado 2", people: 2, ratePerHour: 520 / 11, hours: 11, x: 325, y: 260, fill: "#94C11C", handles: [FIBREX_B], flowShare: 0.5 },
     pegado,
     escuadra,
   ];
@@ -286,8 +286,8 @@ export function makeFibrexLine(opts: FibrexOptions = FIBREX_DEFAULTS): Productio
   if (opts.pintura2) {
     // Dos lineas de pintura en paralelo: lote A -> Pintura 1, lote B -> Pintura 2
     stations.push(
-      { id: "pintura-1", name: "Pintura Cantos 1", people: 1, ratePerHour: 780 / 11, hours: 11, x: 685, y: 110, fill: "#1C1C1A", handles: [FIBREX_A], flowShare: 0.5 },
-      { id: "pintura-2", name: "Pintura Cantos 2", people: 1, ratePerHour: 780 / 11, hours: 11, x: 685, y: 250, fill: "#888780", handles: [FIBREX_B], flowShare: 0.5 }
+      { id: "pintura-1", name: "Pintura Cantos 1", people: 1, ratePerHour: 780 / 11, hours: 11, x: 685, y: 110, fill: "#94C11C", handles: [FIBREX_A], flowShare: 0.5 },
+      { id: "pintura-2", name: "Pintura Cantos 2", people: 1, ratePerHour: 780 / 11, hours: 11, x: 685, y: 250, fill: "#94C11C", handles: [FIBREX_B], flowShare: 0.5 }
     );
     routes[FIBREX_A].push("pintura-1");
     routes[FIBREX_B].push("pintura-2");
@@ -305,7 +305,7 @@ export function makeFibrexLine(opts: FibrexOptions = FIBREX_DEFAULTS): Productio
     tagline: "Puertas Fibrex · pegado y escuadradora configurables",
     unit: "puertas",
     pieceTypes: [FIBREX_A, FIBREX_B],
-    pieceColors: { [FIBREX_A]: "#1C1C1A", [FIBREX_B]: "#888780" },
+    pieceColors: { [FIBREX_A]: "#1C1C1A", [FIBREX_B]: "#1C1C1A" },
     routes,
     stations,
     params: { targetMarcos: 780, rawMaterial: 0, workingDays: 20 },
