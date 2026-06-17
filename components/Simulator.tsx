@@ -47,6 +47,19 @@ export function Simulator({ line }: { line: ProductionLine }) {
 
   const result = useMemo(() => evaluate(stations, params), [stations, params]);
 
+  // El objetivo del turno sigue automáticamente a la capacidad cuando ésta
+  // cambia por ajustes en las estaciones (personas, ritmo, horas) o en la
+  // materia prima. Sigue siendo manipulable: mover el slider del objetivo no
+  // altera la capacidad, así que el valor que el usuario fije a mano se respeta
+  // hasta el próximo cambio de capacidad.
+  const capacityTarget = Math.round(result.effectiveCapacity);
+  useEffect(() => {
+    setParams((p) =>
+      p.targetMarcos === capacityTarget ? p : { ...p, targetMarcos: capacityTarget }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [capacityTarget]);
+
   // --- Eficiencia de la línea ---
   // Combina dos factores:
   //   1) Producción: puertas reales vs. producción ideal a esta hora del turno
