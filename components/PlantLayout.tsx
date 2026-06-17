@@ -15,6 +15,7 @@ interface Props {
   line: ProductionLine;
   stations: Station[];
   target: number;
+  systemCapacity: number;
   running: boolean;
   speed: number;
   mode: StartMode;
@@ -42,11 +43,12 @@ interface Piece {
   x: number;
   y: number;
   t: number;
-  state: "queue" | "serve" | "exit" | "toPallet" | "travel" | "flowOut";
+  state: "queue" | "serve" | "exit" | "toPallet" | "travel" | "flowOut" | "waitCount";
   serviceTime: number;
   cv: Curve | null;
   edgeT: number;
   edgeLen: number;
+  counted: boolean;
   el: SVGCircleElement;
 }
 
@@ -183,6 +185,7 @@ export function PlantLayout({
   line,
   stations,
   target,
+  systemCapacity,
   running,
   speed,
   mode,
@@ -194,6 +197,7 @@ export function PlantLayout({
   const lineRef = useRef(line);
   const stationsRef = useRef(stations);
   const targetRef = useRef(target);
+  const capacityRef = useRef(systemCapacity);
   const speedRef = useRef(speed);
   const runningRef = useRef(running);
   const modeRef = useRef(mode);
@@ -215,6 +219,7 @@ export function PlantLayout({
   lineRef.current = line;
   stationsRef.current = stations;
   targetRef.current = target;
+  capacityRef.current = systemCapacity;
   speedRef.current = speed;
   modeRef.current = mode;
   nPalletsRef.current = palletCount(target, line.palletSize);
@@ -255,6 +260,7 @@ export function PlantLayout({
       cv: null,
       edgeT: 0,
       edgeLen: 1,
+      counted: false,
       el: c,
     };
   }
@@ -269,16 +275,7 @@ export function PlantLayout({
     p.el.parentNode?.removeChild(p.el);
   }
 
-  function queuePos(s: Station, slot: number, total: number) {
-    const COLS = 3;
-    const rows = Math.max(1, Math.ceil(total / COLS));
-    const col = slot % COLS;
-    const row = Math.floor(slot / COLS);
-    const x = s.x - ST_A - 12 - col * 6;
-    const y0 = s.y - (rows * 6) / 2 + 3;
-    return { x, y: y0 + row * 6 };
-  }
-
+  
   function servePos(s: Station): Pt {
     return { x: s.x, y: s.y - ST_H / 2 };
   }
@@ -327,59 +324,39 @@ export function PlantLayout({
   function loadStations() {
     clearAll();
     const sim = simRef.current;
-    const ballU = lineRef.current.ballUnits;
-    const andMode = lineRef.current.assembly === "and";
-    stationsRef.current.forEach((s) => {
-      const share = s.flowShare && s.flowShare > 0 ? s.flowShare : 1;
-      const nB = Math.max(1, Math.round((targetRef.current * share) / ballU));
-      if (andMode) {
-        const total = nB * s.handles.length;
-        let slot = 0;
-        for (let k = 0; k < nB; k++) {
-          s.handles.forEach((type) => {
-            const p = makePiece(type);
-            p.stationId = s.id;
-            p.slot = slot++;
-            p.total = total;
-            p.state = "queue";
-            const pos = queuePos(s, p.slot, total);
-            setPos(p, pos.x, pos.y);
-            sim.stats[s.id].queue.push(p);
-            sim.pieces.push(p);
-          });
-        }
-      } else {
-        // "or": una sola corriente repartida entre los tipos de la estacion
-        const total = nB;
-        for (let k = 0; k < nB; k++) {
-          const type = s.handles[k % s.handles.length];
-          const p = makePiece(type);
-          p.stationId = s.id;
-          p.slot = k;
-          p.total = total;
-          p.state = "queue";
-          const pos = queuePos(s, p.slot, total);
-          setPos(p, pos.x, pos.y);
-          sim.stats[s.id].queue.push(p);
-          sim.pieces.push(p);
-        }
-      }
+    const types = lineRef.current.pieceTypes;
+    // Arranque CALIENTE (línea saturada): se coloca 1 pieza de cada tipo en
+    // cada etapa de su ruta, de modo que todas las estaciones trabajan desde
+    // t=0 (régimen permanente, sin rampa de llenado). La alimentación continua
+    // de stepTransitorio mantiene la línea llena. Así la producción crece al
+    // ritmo del cuello desde el inicio y llega a ~capacidad al cierre del turno.
+    types.forEach((type) => {
+      const route = lineRef.current.routes[type] || [];
+      route.forEach((stId, stage) => {
+        const s = stationById(stId);
+        const st = sim.stats[stId];
+        if (!s || !st) return;
+        const p = makePiece(type);
+        p.stage = stage;
+        p.state = "queue";
+        const idx = st.queue.length;
+        const dx = s.x - ST_A - 10 - (idx % 6) * 5;
+        const dy = s.y + Math.floor(idx / 6) * 5 + typeOffset(type);
+        setPos(p, dx, dy);
+        st.queue.push(p);
+        sim.pieces.push(p);
+      });
     });
     paint();
   }
 
   function prepare() {
-    if (modeRef.current === "carga") loadStations();
-    else {
-      clearAll();
-      paint();
-    }
-  }
-
-  function nextStationId(type: PieceType, currentId: string): string | null {
-    const r = lineRef.current.routes[type] || [];
-    const idx = r.indexOf(currentId);
-    return idx >= 0 && idx < r.length - 1 ? r[idx + 1] : null;
+    // Solo se limpia el plano. En modo "carga" el material se inyecta al
+    // arrancar (useEffect de running), cuando las estaciones, las rutas y el
+    // objetivo ya están sincronizados, evitando el desfase que dejaba piezas
+    // viajando hacia estaciones aún inexistentes.
+    clearAll();
+    paint();
   }
 
   function startServe(s: Station, st: StatBucket, p: Piece) {
@@ -397,72 +374,20 @@ export function PlantLayout({
     return palletGeom(Math.min(nPal - 1, Math.floor(sim.completed / lineRef.current.palletSize)), nPal);
   }
 
-  function stepCarga(dt: number) {
-    const sim = simRef.current;
-    sim.simTime += dt;
-
-    stationsRef.current.forEach((s) => {
-      const st = sim.stats[s.id];
-      if (!st) return;
-      if (st.serving) st.busy += dt;
-      if (!st.serving && st.queue.length > 0) startServe(s, st, st.queue.shift()!);
-    });
-
-    for (let i = sim.pieces.length - 1; i >= 0; i--) {
-      const p = sim.pieces[i];
-      const s = stationById(p.stationId);
-      if (!s) continue;
-      const st = sim.stats[p.stationId];
-      if (!st) continue;
-
-      if (p.state === "queue") {
-        const pos = queuePos(s, p.slot, p.total);
-        setPos(p, pos.x, pos.y);
-      } else if (p.state === "serve") {
-        const sp = servePos(s);
-        setPos(p, sp.x, sp.y);
-        p.t += dt;
-        if (p.t >= p.serviceTime) {
-          st.serving = null;
-          const routeC = lineRef.current.routes[p.type] || [];
-          const isLastC = routeC.length > 0 && routeC[routeC.length - 1] === s.id;
-          if (isLastC) {
-            const g = activePalletGeom();
-            setTravel(p, arrowToPallet(s.x, s.y + ST_B, g.cx, g.baseY));
-            p.state = "toPallet";
-          } else {
-            const nxt = nextStationId(p.type, s.id);
-            const to = nxt ? stationById(nxt) : null;
-            if (to) {
-              setTravel(p, curveH(s.x + ST_A, s.y, to.x - ST_A, to.y));
-              p.state = "flowOut";
-            } else {
-              removePiece(p);
-              sim.pieces.splice(i, 1);
-            }
-          }
-        }
-      } else if (p.state === "flowOut") {
-        const done = advance(p, dt);
-        p.el.setAttribute("opacity", String(p.edgeT < 0.6 ? 1 : Math.max(0, 1 - (p.edgeT - 0.6) / 0.4)));
-        if (done) {
-          p.el.setAttribute("opacity", "1");
-          removePiece(p);
-          sim.pieces.splice(i, 1);
-        }
-      } else if (p.state === "toPallet") {
-        if (advance(p, dt)) depositPallet(p, i);
-      }
-    }
-  }
-
   function stepTransitorio(dt: number) {
     const sim = simRef.current;
     sim.simTime += dt;
     const t = sim.simTime;
     const tgt = targetRef.current;
 
-    const arrivalsPerHour = tgt / TURN_HOURS / lineRef.current.ballUnits;
+    // Alimentación continua de materia prima. En "carga" sobrealimentamos
+    // (×1.4 sobre el ritmo del cuello) para que el cuello JAMÁS quede sin
+    // material: el excedente se acumula como cola justo antes del cuello —lo
+    // hace visible— y la producción alcanza el ritmo real del cuello. En
+    // "transitorio" la materia entra justo al ritmo del objetivo (rampa de
+    // llenado en frío).
+    const feedFactor = modeRef.current === "carga" ? 1.4 : 1;
+    const arrivalsPerHour = (tgt / TURN_HOURS / lineRef.current.ballUnits) * feedFactor;
     const arrivalInterval = arrivalsPerHour > 0 ? 1 / arrivalsPerHour : Infinity;
     const types = lineRef.current.pieceTypes;
     const andMode = lineRef.current.assembly === "and";
@@ -499,15 +424,47 @@ export function PlantLayout({
       const route = lineRef.current.routes[p.type] || [];
 
       if (p.state === "toPallet") {
-        if (advance(p, dt)) depositPallet(p, i);
+        // viaje decorativo a la tarima; la pieza YA quedó contabilizada al
+        // salir de la última estación. Al llegar solo se retira de la escena.
+        if (advance(p, dt)) {
+          if (!p.counted && !countProduction(p)) {
+            continue; // seguridad: el tope la retiene, reintenta el próximo tick
+          }
+          p.counted = true;
+          removePiece(p);
+          sim.pieces.splice(i, 1);
+        }
+        continue;
+      }
+      if (p.state === "waitCount") {
+        // terminó la última estación pero el tope del cuello aún no permite
+        // contarla; espera junto a la salida y reintenta cada tick.
+        const lastId = route[route.length - 1];
+        const last =
+          stationById(lastId) || stationsRef.current[stationsRef.current.length - 1];
+        if (countProduction(p)) {
+          p.counted = true;
+          const g = activePalletGeom();
+          setTravel(p, arrowToPallet(last.x, last.y + ST_B, g.cx, g.baseY));
+          p.state = "toPallet";
+        } else if (last) {
+          setPos(p, last.x, last.y + ST_B);
+        }
         continue;
       }
       if (p.stage >= route.length) {
-        const g = activePalletGeom();
+        // fallback: pieza sin etapa pendiente que aún no pasó por el conteo
         const lastId = route[route.length - 1];
-        const last = stationById(lastId) || stationsRef.current[stationsRef.current.length - 1];
-        setTravel(p, arrowToPallet(last.x, last.y + ST_B, g.cx, g.baseY));
-        p.state = "toPallet";
+        const last =
+          stationById(lastId) || stationsRef.current[stationsRef.current.length - 1];
+        if (countProduction(p)) {
+          p.counted = true;
+          const g = activePalletGeom();
+          setTravel(p, arrowToPallet(last.x, last.y + ST_B, g.cx, g.baseY));
+          p.state = "toPallet";
+        } else {
+          p.state = "waitCount";
+        }
         continue;
       }
 
@@ -527,46 +484,87 @@ export function PlantLayout({
         const offset = typeOffset(p.type);
         const dy = s.y + Math.floor(idx / 6) * 5 + offset;
         setPos(p, dx, dy);
-        if (!st.serving && st.queue[0] === p) {
-          st.queue.shift();
-          startServe(s, st, p);
-        }
       } else if (p.state === "serve") {
         const sp = servePos(s);
         setPos(p, sp.x, sp.y);
         p.t += dt;
         if (p.t >= p.serviceTime) {
+          const carry = p.t - p.serviceTime; // tiempo sobrante del ciclo
           st.serving = null;
           p.stage++;
           if (p.stage < route.length) {
             const to = stationById(route[p.stage])!;
             setTravel(p, curveH(s.x + ST_A, s.y, to.x - ST_A, to.y));
           } else {
-            const g = activePalletGeom();
-            setTravel(p, arrowToPallet(s.x, s.y + ST_B, g.cx, g.baseY));
-            p.state = "toPallet";
+            // salió de la ÚLTIMA estación: contabilizar AQUÍ, sin esperar el
+            // viaje a la tarima (que pasa a ser puramente animación). Esto
+            // elimina la latencia del tramo final y la producción crece al
+            // ritmo real del cuello.
+            if (countProduction(p)) {
+              p.counted = true;
+              const g = activePalletGeom();
+              setTravel(p, arrowToPallet(s.x, s.y + ST_B, g.cx, g.baseY));
+              p.state = "toPallet";
+            } else {
+              p.state = "waitCount";
+            }
+          }
+          // Encadenar de inmediato la siguiente pieza de la cola heredando el
+          // tiempo sobrante: así la estación no pierde fracciones de ciclo y su
+          // throughput es el ritmo real (independiente de la velocidad de la
+          // animación).
+          if (st.queue.length > 0) {
+            const nb = st.queue.shift()!;
+            startServe(s, st, nb);
+            nb.t = carry;
           }
         }
       }
     }
+
+    // Despacho: en cuanto una estación queda libre, toma de inmediato la
+    // siguiente pieza de su cola (FIFO). Hacerlo en una pasada aparte —y no
+    // dentro del recorrido de piezas— evita los huecos que dependían del orden
+    // de iteración y que mantenían el throughput por debajo del ritmo real del
+    // cuello de botella.
+    stationsRef.current.forEach((s) => {
+      const st = sim.stats[s.id];
+      if (st && !st.serving && st.queue.length > 0) {
+        startServe(s, st, st.queue.shift()!);
+      }
+    });
   }
 
-  function depositPallet(p: Piece, i: number) {
+  // Aplica el tope del cuello y suma a la producción si cabe, SIN remover la
+  // pieza. Devuelve true si la pieza ya quedó contabilizada (o aportada al
+  // buffer de ensamble), false si el tope la retiene y debe reintentar.
+  function countProduction(p: Piece): boolean {
     const sim = simRef.current;
+    const ballU = lineRef.current.ballUnits;
+    // Tope por cuello de botella: la producción acumulada nunca supera la
+    // capacidad del sistema escalada por el tiempo del turno (capacidad × t/11),
+    // con techo absoluto en la capacidad del turno. Lo que queda en la línea al
+    // cierre es trabajo en proceso (WIP), no producto terminado.
+    const capLimit = capacityRef.current * Math.min(1, sim.simTime / TURN_HOURS);
+
     if (lineRef.current.assembly === "or") {
-      // cada bolita que llega es producto terminado
-      sim.completed += lineRef.current.ballUnits;
-    } else {
-      // ensamble: se requiere 1 de cada tipo para completar el lote
-      sim.buffer[p.type] = (sim.buffer[p.type] || 0) + 1;
-      const types = lineRef.current.pieceTypes;
-      while (types.every((tp) => (sim.buffer[tp] || 0) > 0)) {
-        types.forEach((tp) => (sim.buffer[tp] = (sim.buffer[tp] || 0) - 1));
-        sim.completed += lineRef.current.ballUnits;
-      }
+      // cada bolita terminada es producto terminado
+      if (sim.completed + ballU > capLimit + 1e-6) return false; // retener
+      sim.completed += ballU;
+      return true;
     }
-    removePiece(p);
-    sim.pieces.splice(i, 1);
+    // ensamble: se requiere 1 de cada tipo para completar el lote. La pieza
+    // aporta al buffer siempre; solo el CONTEO respeta el tope del cuello.
+    sim.buffer[p.type] = (sim.buffer[p.type] || 0) + 1;
+    const types = lineRef.current.pieceTypes;
+    while (
+      types.every((tp) => (sim.buffer[tp] || 0) > 0) &&
+      sim.completed + ballU <= capLimit + 1e-6
+    ) {
+      types.forEach((tp) => (sim.buffer[tp] = (sim.buffer[tp] || 0) - 1));
+      sim.completed += ballU;
+    }
+    return true;
   }
 
   function paint() {
@@ -675,14 +673,12 @@ export function PlantLayout({
     const simDt = real * speedRef.current * 0.25;
     const sub = Math.max(1, Math.ceil(simDt / 0.05));
     for (let i = 0; i < sub; i++) {
-      if (modeRef.current === "carga") stepCarga(simDt / sub);
-      else stepTransitorio(simDt / sub);
+      stepTransitorio(simDt / sub);
     }
     paint();
-    const done =
-      modeRef.current === "carga"
-        ? sim.pieces.length === 0 && sim.simTime > 0.1
-        : sim.simTime >= TURN_HOURS && sim.pieces.length === 0;
+    // El turno dura TURN_HOURS (11 h). Al cerrar, lo que quede en la línea es
+    // trabajo en proceso (WIP). Esto fija el corte en la hora 11 en ambos modos.
+    const done = sim.simTime >= TURN_HOURS;
     if (done) runningRef.current = false;
     else sim.rafId = requestAnimationFrame(loop);
   }
@@ -691,7 +687,11 @@ export function PlantLayout({
     runningRef.current = running;
     const sim = simRef.current;
     if (running) {
-      if (modeRef.current === "carga" && sim.pieces.length === 0) loadStations();
+      // Al arrancar un turno nuevo (simTime 0) en modo carga, recargar siempre
+      // para usar el objetivo/capacidad vigente (evita cargar con un valor
+      // viejo si la config cambió justo antes de iniciar). Al reanudar desde
+      // pausa (simTime > 0) se conserva el avance.
+      if (modeRef.current === "carga" && sim.simTime === 0) loadStations();
       sim.lastTick = 0;
       sim.rafId = requestAnimationFrame(loop);
     } else if (sim.rafId) cancelAnimationFrame(sim.rafId);
