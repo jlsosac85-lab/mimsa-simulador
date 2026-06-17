@@ -5,6 +5,7 @@ import { Station, stationCapacity } from "@/lib/simulation";
 interface Props {
   station: Station;
   isBottleneck: boolean;
+  unit: string;
   onChange: (id: string, patch: Partial<Station>) => void;
 }
 
@@ -48,7 +49,7 @@ function NumberField({
   );
 }
 
-export function StationCard({ station, isBottleneck, onChange }: Props) {
+export function StationCard({ station, isBottleneck, unit, onChange }: Props) {
   const cap = Math.round(stationCapacity(station));
 
   return (
@@ -81,7 +82,7 @@ export function StationCard({ station, isBottleneck, onChange }: Props) {
           onChange={(v) => onChange(station.id, { people: v })}
         />
         <NumberField
-          label="Marcos/hora"
+          label={`${unit}/hora`}
           value={station.ratePerHour}
           min={0}
           step={10}
@@ -107,7 +108,7 @@ export function StationCard({ station, isBottleneck, onChange }: Props) {
         >
           {cap.toLocaleString("es-MX")}{" "}
           <span className="text-[10px] font-normal text-mimsa-grayLight">
-            marcos/turno
+            {unit}/turno
           </span>
         </span>
       </div>

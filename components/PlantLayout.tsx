@@ -286,6 +286,10 @@ export function PlantLayout({
   // Separacion vertical de cada tipo de pieza (para no encimar bolitas
   // de tipos distintos en colas y llegadas). Centrado segun pieceTypes.
   function typeOffset(type: string): number {
+    // En líneas de vía paralela (modo "or") las piezas son el mismo producto:
+    // no se separan por tipo. La división se ve por la bifurcación física
+    // hacia las estaciones de cada rama (Mesa 1 arriba / Mesa 2 abajo).
+    if (lineRef.current.assembly === "or") return 0;
     const types = lineRef.current.pieceTypes;
     const idx = types.indexOf(type);
     const n = types.length;
@@ -853,17 +857,24 @@ export function PlantLayout({
           <text x="60" y="13" textAnchor="middle" fontSize="10" fontWeight="600" fill="white">CUELLO DE BOTELLA</text>
         </g>
 
-        {/* Leyenda dinamica por tipo de pieza de la linea */}
-        {line.pieceTypes.map((tp, i) => {
-          const lx = 40 + i * 132;
-          return (
-            <g key={`leg-${tp}`}>
-              <circle cx={lx} cy={LEGEND_Y} r="4" fill={line.pieceColors[tp] || "#888780"} stroke="#FFFFFF" strokeWidth="0.8" />
-              <text x={lx + 10} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A" style={{ textTransform: "capitalize" }}>{tp}</text>
-            </g>
-          );
-        })}
-        <text x={40 + line.pieceTypes.length * 132} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Cada bolita = {line.ballUnits} unidades</text>
+        {/* Leyenda: una sola corrida en modo "or"; por componente en "and" */}
+        {line.assembly === "or" ? (
+          <g>
+            <circle cx={40} cy={LEGEND_Y} r="4" fill={line.pieceColors[line.pieceTypes[0]] || "#1C1C1A"} stroke="#FFFFFF" strokeWidth="0.8" />
+            <text x={50} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A" style={{ textTransform: "capitalize" }}>{line.unit}</text>
+          </g>
+        ) : (
+          line.pieceTypes.map((tp, i) => {
+            const lx = 40 + i * 132;
+            return (
+              <g key={`leg-${tp}`}>
+                <circle cx={lx} cy={LEGEND_Y} r="4" fill={line.pieceColors[tp] || "#888780"} stroke="#FFFFFF" strokeWidth="0.8" />
+                <text x={lx + 10} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A" style={{ textTransform: "capitalize" }}>{tp}</text>
+              </g>
+            );
+          })
+        )}
+        <text x={line.assembly === "or" ? 172 : 40 + line.pieceTypes.length * 132} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Cada bolita = {line.ballUnits} unidades</text>
 
         {/* Titulo zona de tarimas */}
         <text x="20" y={TITLE_Y} fontSize="11" fontWeight="700" fill="#1C1C1A">PRODUCTO TERMINADO</text>

@@ -9,6 +9,7 @@ import {
   FIBREX_DEFAULTS,
   makeFibrexLine,
   evaluate,
+  requiredPeople,
 } from "@/lib/simulation";
 import { MimsaLogo } from "./MimsaLogo";
 import { KpiStrip } from "./KpiStrip";
@@ -46,13 +47,27 @@ export function Simulator({ line }: { line: ProductionLine }) {
 
   const result = useMemo(() => evaluate(stations, params), [stations, params]);
 
-  // Eficiencia en vivo: producción real vs. producción ideal a esta altura del
-  // turno, donde 100% = capacidad base del turno (la línea a tope).
+  // --- Eficiencia de la línea ---
+  // Combina dos factores:
+  //   1) Producción: puertas reales vs. producción ideal a esta hora del turno
+  //      (100% = capacidad base del turno, la línea a tope).
+  //   2) Mano de obra: plantilla necesaria por ritmo vs. plantilla asignada
+  //      (si hay operadores de más, este factor baja y penaliza el exceso).
+  // Eficiencia global = producción × mano de obra. El 100% solo se logra
+  // produciendo a tope Y con la plantilla justa.
   const baseCapacity = result.effectiveCapacity;
   const idealNow = baseCapacity * (live.hour / 11);
-  const efficiency =
-    live.hour > 0.4 && idealNow > 0 ? (live.completed / idealNow) * 100 : 0;
+  const prodRatio =
+    live.hour > 0.4 && idealNow > 0 ? Math.min(1, live.completed / idealNow) : 0;
+
+  const totalPeople = stations.reduce((a, s) => a + s.people, 0);
+  const neededPeople = stations.reduce((a, s) => a + requiredPeople(effLine, s), 0);
+  const staffRatio = totalPeople > 0 ? Math.min(1, neededPeople / totalPeople) : 1;
+
   const measuring = running || live.hour > 0.4;
+  const prodPct = prodRatio * 100;
+  const staffPct = staffRatio * 100;
+  const efficiency = Math.max(0, Math.min(100, prodRatio * staffRatio * 100));
 
   function patchStation(id: string, patch: Partial<Station>) {
     setStations((prev) =>
@@ -314,6 +329,10 @@ export function Simulator({ line }: { line: ProductionLine }) {
           measuring={measuring}
           unit={effLine.unit}
           baseCapacity={baseCapacity}
+          prodPct={prodPct}
+          staffPct={staffPct}
+          totalPeople={totalPeople}
+          neededPeople={neededPeople}
         />
         <PlantLayout
           line={effLine}
@@ -356,6 +375,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
               key={r.station.id}
               station={r.station}
               isBottleneck={r.isBottleneck}
+              unit={effLine.unit}
               onChange={patchStation}
             />
           ))}
