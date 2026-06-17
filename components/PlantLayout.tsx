@@ -67,6 +67,17 @@ const TRAVEL_SPEED = 520;
 const KPI_DARK = "#1C1C1A";
 const KPI_GREEN = "#94C11C";
 
+// Oscurece un color hex (para el borde sombreado de las esferas, sin recurrir
+// al negro: así las bolitas se ven volumétricas también sobre fondo claro).
+function darken(hex: string, f: number): string {
+  const h = hex.replace("#", "");
+  if (h.length < 6) return hex;
+  const r = Math.round(parseInt(h.slice(0, 2), 16) * f);
+  const g = Math.round(parseInt(h.slice(2, 4), 16) * f);
+  const b = Math.round(parseInt(h.slice(4, 6), 16) * f);
+  return `rgb(${r},${g},${b})`;
+}
+
 // Cubo isometrico de estacion
 const ST_A = 32;
 const ST_B = 15;
@@ -241,7 +252,7 @@ export function PlantLayout({
     const sim = simRef.current;
     const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     c.setAttribute("r", "4.3");
-    c.setAttribute("fill", `url(#sphere-${type.replace(/\s+/g, "-")})`);
+    c.setAttribute("fill", "url(#sphere-green)");
     c.setAttribute("stroke", "none");
     layerRef.current?.appendChild(c);
     return {
@@ -747,17 +758,20 @@ export function PlantLayout({
             <feDropShadow dx="0" dy="0" stdDeviation="1.1" floodColor="#94C11C" floodOpacity="0.55" />
           </filter>
           {/* Esferas (volumen 3D) por tipo de pieza */}
-          {line.pieceTypes.map((tp) => (
-            <radialGradient key={`sph-${tp}`} id={`sphere-${tp.replace(/\s+/g, "-")}`} cx="34%" cy="28%" r="82%">
-              <stop offset="0%" stopColor="#ffffff" />
-              <stop offset="20%" stopColor={line.pieceColors[tp] || "#9bd11e"} />
-              <stop offset="100%" stopColor="#0a0c07" />
-            </radialGradient>
-          ))}
-          <radialGradient id="sphere-green" cx="34%" cy="28%" r="82%">
+          {line.pieceTypes.map((tp) => {
+            const base = line.pieceColors[tp] || "#9bd11e";
+            return (
+              <radialGradient key={`sph-${tp}`} id={`sphere-${tp.replace(/\s+/g, "-")}`} cx="36%" cy="30%" r="80%">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="32%" stopColor={base} />
+                <stop offset="100%" stopColor={darken(base, 0.42)} />
+              </radialGradient>
+            );
+          })}
+          <radialGradient id="sphere-green" cx="36%" cy="30%" r="80%">
             <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="20%" stopColor="#a6d62a" />
-            <stop offset="100%" stopColor="#0a0c07" />
+            <stop offset="32%" stopColor="#94C11C" />
+            <stop offset="100%" stopColor="#3f5610" />
           </radialGradient>
           {/* Caras del cubo con iluminación direccional (volumen) */}
           <linearGradient id="cubeTopG" x1="0" y1="0" x2="0.3" y2="1">
@@ -820,10 +834,10 @@ export function PlantLayout({
           const f = cubeFaces(40, 180, 18, 9, 22);
           return (
             <g>
-              <polygon points={f.left} fill="#1c2114" stroke="#94C11C" strokeWidth="0.8" />
-              <polygon points={f.right} fill="#141810" stroke="#94C11C" strokeWidth="0.8" />
-              <polygon points={f.top} fill="#2a331c" stroke="#94C11C" strokeWidth="0.8" />
-              <text x="40" y="216" textAnchor="middle" fontSize="10" fill="#9AA17F">Entrada</text>
+              <polygon points={f.left} fill="#B9B7AD" stroke="#6F9213" strokeWidth="0.8" />
+              <polygon points={f.right} fill="#A4A299" stroke="#6F9213" strokeWidth="0.8" />
+              <polygon points={f.top} fill="#D3D1C7" stroke="#6F9213" strokeWidth="0.8" />
+              <text x="40" y="216" textAnchor="middle" fontSize="10" fill="#5F5E5A">Entrada</text>
             </g>
           );
         })()}
@@ -847,8 +861,8 @@ export function PlantLayout({
                 cy={s.y + ST_B + ST_H / 2 + 1}
                 rx={ST_A * 0.92}
                 ry={ST_B * 0.8}
-                fill="#000000"
-                opacity="0.4"
+                fill="#1C1C1A"
+                opacity="0.16"
               />
               {/* bolitas de ocupacion dentro del cubo */}
               {occDraw.map((c) => (
@@ -865,9 +879,9 @@ export function PlantLayout({
                 />
               ))}
               {/* vidrio translucido con volumen (neón sobre carbón) */}
-              <polygon points={f.top} fill="url(#cubeTopG)" fillOpacity="0.26" />
-              <polygon points={f.left} fill="url(#cubeLeftG)" fillOpacity="0.22" />
-              <polygon points={f.right} fill="url(#cubeRightG)" fillOpacity="0.3" />
+              <polygon points={f.top} fill="url(#cubeTopG)" fillOpacity="0.4" />
+              <polygon points={f.left} fill="url(#cubeLeftG)" fillOpacity="0.45" />
+              <polygon points={f.right} fill="url(#cubeRightG)" fillOpacity="0.55" />
               {/* aristas verde KPI */}
               <polygon id={`cube-top-${s.id}`} points={f.top} fill="none" stroke={KPI_GREEN} strokeWidth="1.3" />
               <polygon points={f.left} fill="none" stroke={KPI_GREEN} strokeWidth="1.3" />
@@ -875,20 +889,20 @@ export function PlantLayout({
               {/* nombre + capacidad arriba */}
               {twoLines ? (
                 <>
-                  <text x={s.x} y={nameY} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#DCE3CC">{line1}</text>
-                  <text x={s.x} y={nameY + 10} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#DCE3CC">{line2}</text>
+                  <text x={s.x} y={nameY} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#1C1C1A">{line1}</text>
+                  <text x={s.x} y={nameY + 10} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#1C1C1A">{line2}</text>
                 </>
               ) : (
-                <text x={s.x} y={nameY} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#DCE3CC">{s.name}</text>
+                <text x={s.x} y={nameY} textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#1C1C1A">{s.name}</text>
               )}
-              <text x={s.x} y={capY} textAnchor="middle" fontSize="8" fontWeight="600" fill="#94C11C">
+              <text x={s.x} y={capY} textAnchor="middle" fontSize="8" fontWeight="600" fill="#6F9213">
                 {Math.round(stationCapacity(s))}/t
               </text>
               {/* pendiente + ocupacion debajo */}
               <text x={s.x} y={s.y + ST_B + ST_H / 2 + 12} textAnchor="middle" fontSize="9" fill="#8A9072">
                 Pend:{" "}
-                <tspan id={`q-${s.id}`} fontWeight="600" fill="#DCE3CC">0</tspan> · Ocup.{" "}
-                <tspan id={`u-${s.id}`} fontWeight="700" fill="#94C11C">0%</tspan>
+                <tspan id={`q-${s.id}`} fontWeight="600" fill="#1C1C1A">0</tspan> · Ocup.{" "}
+                <tspan id={`u-${s.id}`} fontWeight="700" fill="#6F9213">0%</tspan>
               </text>
             </g>
           );
@@ -907,7 +921,7 @@ export function PlantLayout({
         {line.assembly === "or" ? (
           <g>
             <circle cx={40} cy={LEGEND_Y} r="4" fill={line.pieceColors[line.pieceTypes[0]] || "#1C1C1A"} stroke="#FFFFFF" strokeWidth="0.8" />
-            <text x={50} y={LEGEND_Y + 3} fontSize="9" fill="#9AA17F" style={{ textTransform: "capitalize" }}>{line.unit}</text>
+            <text x={50} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A" style={{ textTransform: "capitalize" }}>{line.unit}</text>
           </g>
         ) : (
           line.pieceTypes.map((tp, i) => {
@@ -915,16 +929,16 @@ export function PlantLayout({
             return (
               <g key={`leg-${tp}`}>
                 <circle cx={lx} cy={LEGEND_Y} r="4" fill={line.pieceColors[tp] || "#888780"} stroke="#FFFFFF" strokeWidth="0.8" />
-                <text x={lx + 10} y={LEGEND_Y + 3} fontSize="9" fill="#9AA17F" style={{ textTransform: "capitalize" }}>{tp}</text>
+                <text x={lx + 10} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A" style={{ textTransform: "capitalize" }}>{tp}</text>
               </g>
             );
           })
         )}
-        <text x={line.assembly === "or" ? 172 : 40 + line.pieceTypes.length * 132} y={LEGEND_Y + 3} fontSize="9" fill="#9AA17F">Cada bolita = {line.ballUnits} unidades</text>
+        <text x={line.assembly === "or" ? 172 : 40 + line.pieceTypes.length * 132} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Cada bolita = {line.ballUnits} unidades</text>
 
         {/* Titulo zona de tarimas */}
-        <text x="20" y={TITLE_Y} fontSize="11" fontWeight="700" fill="#DCE3CC">PRODUCTO TERMINADO</text>
-        <text id="pallet-summary" x="200" y={TITLE_Y} fontSize="10" fill="#9AA17F">
+        <text x="20" y={TITLE_Y} fontSize="11" fontWeight="700" fill="#1C1C1A">PRODUCTO TERMINADO</text>
+        <text id="pallet-summary" x="200" y={TITLE_Y} fontSize="10" fill="#5F5E5A">
           Tarimas llenas: 0/{nPal} · 0 marcos terminados
         </text>
 
@@ -943,13 +957,13 @@ export function PlantLayout({
               <polygon
                 points={`${cx},${topRombo - wB} ${cx + wA},${topRombo} ${cx},${topRombo + wB} ${cx - wA},${topRombo}`}
                 fill="none"
-                stroke="#C9C7BD"
+                stroke="#B7B3A6"
                 strokeWidth="1"
                 strokeDasharray="3 3"
               />
-              <line x1={cx - wA} y1={topRombo} x2={cx - wA} y2={baseY} stroke="#C9C7BD" strokeWidth="1" strokeDasharray="3 3" />
-              <line x1={cx + wA} y1={topRombo} x2={cx + wA} y2={baseY} stroke="#C9C7BD" strokeWidth="1" strokeDasharray="3 3" />
-              <line x1={cx} y1={topRombo + wB} x2={cx} y2={baseY + wB} stroke="#C9C7BD" strokeWidth="1" strokeDasharray="3 3" />
+              <line x1={cx - wA} y1={topRombo} x2={cx - wA} y2={baseY} stroke="#B7B3A6" strokeWidth="1" strokeDasharray="3 3" />
+              <line x1={cx + wA} y1={topRombo} x2={cx + wA} y2={baseY} stroke="#B7B3A6" strokeWidth="1" strokeDasharray="3 3" />
+              <line x1={cx} y1={topRombo + wB} x2={cx} y2={baseY + wB} stroke="#B7B3A6" strokeWidth="1" strokeDasharray="3 3" />
               {draw.map((c) => (
                 <circle
                   key={`${pi}-${c.fo}`}
@@ -964,7 +978,7 @@ export function PlantLayout({
                 />
               ))}
               {/* sombra de contacto bajo la tarima */}
-              <ellipse cx={cx} cy={baseY + wB + 6} rx={wA + 4} ry={wB * 0.55} fill="#000000" opacity="0.38" />
+              <ellipse cx={cx} cy={baseY + wB + 6} rx={wA + 4} ry={wB * 0.55} fill="#1C1C1A" opacity="0.14" />
               <polygon
                 points={`${cx},${baseY + wB} ${cx + wA},${baseY} ${cx},${baseY - wB} ${cx - wA},${baseY}`}
                 fill="url(#woodTopG)"
@@ -973,8 +987,8 @@ export function PlantLayout({
               />
               <polygon points={`${cx - wA},${baseY} ${cx},${baseY + wB} ${cx},${baseY + wB + 7} ${cx - wA},${baseY + 7}`} fill="#6E4420" />
               <polygon points={`${cx},${baseY + wB} ${cx + wA},${baseY} ${cx + wA},${baseY + 7} ${cx},${baseY + wB + 7}`} fill="#5A3618" />
-              <text x={cx} y={baseY + wB + 22} textAnchor="middle" fontSize="9" fontWeight="600" fill="#DCE3CC">Tarima {pi + 1}</text>
-              <text id={`pallet-lbl-${pi}`} x={cx} y={baseY + wB + 33} textAnchor="middle" fontSize="9" fill="#9AA17F">0/{line.palletSize}</text>
+              <text x={cx} y={baseY + wB + 22} textAnchor="middle" fontSize="9" fontWeight="600" fill="#1C1C1A">Tarima {pi + 1}</text>
+              <text id={`pallet-lbl-${pi}`} x={cx} y={baseY + wB + 33} textAnchor="middle" fontSize="9" fill="#5F5E5A">0/{line.palletSize}</text>
             </g>
           );
         })}

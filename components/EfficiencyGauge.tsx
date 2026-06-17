@@ -49,10 +49,10 @@ export function EfficiencyGauge({
     <div className="hud-card mb-3 px-4 py-3">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="hud-label text-[11px] font-semibold text-mimsa-grayLight">
+          <span className="hud-label text-[11px] font-semibold text-mimsa-gray">
             Eficiencia de la línea
           </span>
-          <span className="text-[10px] text-mimsa-grayLight/80">
+          <span className="text-[10px] text-mimsa-gray/80">
             100% = {Math.round(baseCapacity).toLocaleString("es-MX")} {unit}/turno
           </span>
         </div>
@@ -103,7 +103,7 @@ export function EfficiencyGauge({
         )}
 
         {/* Escala */}
-        <div className="mt-1 flex justify-between text-[9px] font-medium text-mimsa-grayLight">
+        <div className="mt-1 flex justify-between text-[9px] font-medium text-mimsa-gray">
           <span>0%</span>
           <span>25%</span>
           <span>50%</span>
@@ -114,30 +114,30 @@ export function EfficiencyGauge({
 
       {/* Desglose de los dos factores */}
       <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-mimsa-green/15 pt-2 text-[11px]">
-        <span className="text-mimsa-grayLight">
+        <span className="text-mimsa-gray">
           Producción{" "}
-          <span className="font-mono font-semibold text-mimsa-line">
+          <span className="font-mono font-semibold text-mimsa-black">
             {measuring ? `${prodPct.toFixed(0)}%` : "—"}
           </span>
         </span>
-        <span className="text-mimsa-grayLight/50">×</span>
-        <span className="text-mimsa-grayLight">
+        <span className="text-mimsa-gray/50">×</span>
+        <span className="text-mimsa-gray">
           Mano de obra{" "}
           <span
             className="font-mono font-semibold"
-            style={{ color: staffPct < 99 ? "#A32D2D" : "#D7DEC8" }}
+            style={{ color: staffPct < 99 ? "#A32D2D" : "#1C1C1A" }}
           >
             {staffPct.toFixed(0)}%
           </span>
         </span>
-        <span className="text-mimsa-grayLight/60">
+        <span className="text-mimsa-gray/60">
           ({totalPeople} asignados · {neededPeople} necesarios
           {exceso > 0 ? ` · ${exceso} de más` : ""})
         </span>
       </div>
 
       {!measuring && (
-        <p className="mt-1.5 text-[10px] text-mimsa-grayLight">
+        <p className="mt-1.5 text-[10px] text-mimsa-gray">
           Inicia la simulación para medir el ritmo real contra la capacidad base.
         </p>
       )}

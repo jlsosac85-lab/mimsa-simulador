@@ -75,10 +75,10 @@ export function KpiStrip({ line, stations, params, result }: Props) {
     <div className="hud-panel hud-bracket mb-4 overflow-hidden">
       {/* Cabecera de telemetría */}
       <div className="flex items-center justify-between border-b border-mimsa-green/15 px-5 py-1.5">
-        <span className="hud-label text-[9px] text-mimsa-green/70">
+        <span className="hud-label text-[9px] text-mimsa-greenDark/70">
           MIMSA · Telemetría de línea
         </span>
-        <span className="flex items-center gap-1.5 hud-label text-[9px] text-mimsa-grayLight">
+        <span className="flex items-center gap-1.5 hud-label text-[9px] text-mimsa-gray">
           <span className="h-1.5 w-1.5 rounded-full bg-mimsa-green shadow-glow-sm animate-pulse" />
           En vivo
         </span>
@@ -92,11 +92,11 @@ export function KpiStrip({ line, stations, params, result }: Props) {
               i > 0 ? "lg:border-l lg:border-mimsa-green/15" : ""
             }`}
           >
-            <span className="mb-1.5 hud-label text-[9.5px] font-semibold text-mimsa-grayLight">
+            <span className="mb-1.5 hud-label text-[9.5px] font-semibold text-mimsa-gray">
               {k.label}
             </span>
             <span
-              className={`hud-glow w-full font-mono font-bold text-mimsa-green ${
+              className={`hud-glow w-full font-mono font-bold text-mimsa-greenDark ${
                 k.small
                   ? "text-sm leading-tight break-words hyphens-auto"
                   : "text-[26px] leading-none"
@@ -105,7 +105,7 @@ export function KpiStrip({ line, stations, params, result }: Props) {
               {k.value}
             </span>
             {k.unit && (
-              <span className="mt-1.5 text-[10px] leading-tight text-mimsa-green/60">
+              <span className="mt-1.5 text-[10px] leading-tight text-mimsa-greenDark/60">
                 {k.unit}
               </span>
             )}

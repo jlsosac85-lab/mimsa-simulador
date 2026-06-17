@@ -135,10 +135,10 @@ export function Simulator({ line }: { line: ProductionLine }) {
       <header className="hud-panel hud-bracket hud-scan mb-4 flex items-center gap-4 px-6 py-3.5">
         <MimsaLogo size={46} />
         <div className="min-w-0">
-          <h1 className="font-display text-lg font-bold leading-tight tracking-wide text-white">
+          <h1 className="font-display text-lg font-bold leading-tight tracking-wide text-mimsa-black">
             Simulador de Producción
           </h1>
-          <p className="hud-label text-[11px] text-mimsa-green hud-glow">
+          <p className="hud-label text-[11px] text-mimsa-greenDark hud-glow">
             {effLine.name.toUpperCase()} · Análisis de cuellos de botella
           </p>
         </div>
@@ -150,7 +150,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
       {/* Parametros globales */}
       <section className="hud-card mb-4 grid gap-3 p-4 sm:grid-cols-3">
         <label className="flex flex-col gap-1.5">
-          <span className="hud-label text-[10px] text-mimsa-grayLight">
+          <span className="hud-label text-[10px] text-mimsa-gray">
             Objetivo {effLine.unit}/turno
           </span>
           <div className="flex items-center gap-3">
@@ -168,14 +168,14 @@ export function Simulator({ line }: { line: ProductionLine }) {
               }
               className="flex-1"
             />
-            <span className="w-14 text-right font-mono text-sm font-bold text-mimsa-green hud-glow">
+            <span className="w-14 text-right font-mono text-sm font-bold text-mimsa-greenDark hud-glow">
               {params.targetMarcos}
             </span>
           </div>
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className="hud-label text-[10px] text-mimsa-grayLight">
+          <span className="hud-label text-[10px] text-mimsa-gray">
             Materia prima disponible (0 = sin límite)
           </span>
           <input
@@ -194,7 +194,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className="hud-label text-[10px] text-mimsa-grayLight">
+          <span className="hud-label text-[10px] text-mimsa-gray">
             Días hábiles (proyección mensual)
           </span>
           <input
@@ -220,13 +220,13 @@ export function Simulator({ line }: { line: ProductionLine }) {
             <span className="hud-label rounded bg-mimsa-green px-2 py-0.5 text-[10px] font-bold text-mimsa-black">
               Configuración Fibrex
             </span>
-            <span className="text-[11px] text-mimsa-grayLight">
+            <span className="text-[11px] text-mimsa-gray">
               Cambia el tipo de proceso y observa cómo se mueve el cuello de botella
             </span>
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="hud-label text-[10px] text-mimsa-grayLight">
+            <span className="hud-label text-[10px] text-mimsa-gray">
               Pegado
             </span>
             <select
@@ -242,7 +242,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="hud-label text-[10px] text-mimsa-grayLight">
+            <span className="hud-label text-[10px] text-mimsa-gray">
               Escuadradora
             </span>
             <select
@@ -258,7 +258,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="hud-label text-[10px] text-mimsa-grayLight">
+            <span className="hud-label text-[10px] text-mimsa-gray">
               Pintura de Cantos
             </span>
             <button
@@ -287,7 +287,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
           {running ? "❚❚ Pausa" : "▶ Iniciar simulación"}
         </button>
         <label className="flex items-center gap-1.5">
-          <span className="hud-label text-[10px] text-mimsa-grayLight">Arranque</span>
+          <span className="hud-label text-[10px] text-mimsa-gray">Arranque</span>
           <select
             value={startMode}
             onChange={(e) => {
@@ -307,7 +307,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
           ↻ Reiniciar
         </button>
         <div className="flex items-center gap-2">
-          <span className="hud-label text-[10px] text-mimsa-grayLight">Velocidad</span>
+          <span className="hud-label text-[10px] text-mimsa-gray">Velocidad</span>
           <input
             type="range"
             min={1}
@@ -323,19 +323,19 @@ export function Simulator({ line }: { line: ProductionLine }) {
         >
           ↓ Exportar escenario (JSON)
         </button>
-        <div className="ml-auto inline-flex items-center gap-3 rounded-lg border border-mimsa-green/40 bg-mimsa-deep px-4 py-2 font-mono text-sm font-bold text-mimsa-green shadow-glow-sm">
+        <div className="ml-auto inline-flex items-center gap-3 rounded-lg border border-mimsa-green/40 bg-white px-4 py-2 font-mono text-sm font-bold text-mimsa-greenDark shadow-glow-sm">
           <span>
-            Hora <span className="text-white">{live.hour.toFixed(1)}</span>
-            <span className="text-mimsa-green/60">/11</span>
+            Hora <span className="text-mimsa-black">{live.hour.toFixed(1)}</span>
+            <span className="text-mimsa-greenDark/60">/11</span>
           </span>
-          <span className="text-mimsa-green/40">·</span>
+          <span className="text-mimsa-greenDark/40">·</span>
           <span>
             <span className="capitalize">{effLine.unit}</span>{" "}
-            <span className="text-white">{live.completed}</span>
+            <span className="text-mimsa-black">{live.completed}</span>
           </span>
-          <span className="text-mimsa-green/40">·</span>
+          <span className="text-mimsa-greenDark/40">·</span>
           <span>
-            WIP <span className="text-white">{live.wip}</span>
+            WIP <span className="text-mimsa-black">{live.wip}</span>
           </span>
         </div>
       </section>
@@ -382,10 +382,10 @@ export function Simulator({ line }: { line: ProductionLine }) {
       {/* Estaciones editables */}
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="hud-label text-xs font-semibold text-mimsa-green">
+          <h2 className="hud-label text-xs font-semibold text-mimsa-greenDark">
             Estaciones — edita personas, ritmo y horas
           </h2>
-          <span className="text-[11px] text-mimsa-grayLight">
+          <span className="text-[11px] text-mimsa-gray">
             Capacidad = {effLine.unit}/hora × horas
           </span>
         </div>
@@ -402,7 +402,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
         </div>
       </section>
 
-      <footer className="mt-6 border-t border-mimsa-green/15 pt-4 text-center text-[11px] text-mimsa-grayLight">
+      <footer className="mt-6 border-t border-mimsa-green/15 pt-4 text-center text-[11px] text-mimsa-gray">
         MIMSA · Manufactura Integral de Marcos y Soluciones de Acero — Simulador
         de {effLine.name}. Datos base del análisis de tiempos por estación.
       </footer>

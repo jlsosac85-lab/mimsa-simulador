@@ -52,17 +52,17 @@ const FLAGS = [
 
 export function FlagsBar() {
   return (
-    <div className="w-[120px] rounded-xl border border-mimsa-green/30 bg-mimsa-black p-3 shadow-sm">
-      <div className="mb-3 text-center text-[10px] font-semibold uppercase tracking-wide text-mimsa-green">
+    <div className="w-[120px] rounded-xl border border-mimsa-green/30 bg-white p-3 shadow-sm">
+      <div className="mb-3 text-center text-[10px] font-semibold uppercase tracking-wide text-mimsa-greenDark">
         Mercados
       </div>
       <div className="flex flex-col gap-3">
         {FLAGS.map(({ code, name, Comp }) => (
           <div key={code} className="flex flex-col items-center gap-1">
-            <span className="overflow-hidden rounded-[3px] shadow-sm ring-1 ring-white/15">
+            <span className="overflow-hidden rounded-[3px] shadow-sm ring-1 ring-mimsa-line">
               <Comp />
             </span>
-            <span className="font-mono text-[10px] font-medium text-mimsa-grayLight">
+            <span className="font-mono text-[10px] font-medium text-mimsa-gray">
               {name}
             </span>
           </div>

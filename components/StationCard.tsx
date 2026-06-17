@@ -26,7 +26,7 @@ function NumberField({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-wide text-mimsa-grayLight">
+      <span className="text-[10px] uppercase tracking-wide text-mimsa-gray">
         {label}
       </span>
       <div className="flex items-center gap-1">
@@ -42,7 +42,7 @@ function NumberField({
           className="hud-field w-full rounded-md px-2 py-1 text-sm font-medium"
         />
         {suffix && (
-          <span className="text-[10px] text-mimsa-grayLight">{suffix}</span>
+          <span className="text-[10px] text-mimsa-gray">{suffix}</span>
         )}
       </div>
     </label>
@@ -65,7 +65,7 @@ export function StationCard({ station, isBottleneck, unit, onChange }: Props) {
           type="text"
           value={station.name}
           onChange={(e) => onChange(station.id, { name: e.target.value })}
-          className="min-w-0 flex-1 border-none bg-transparent text-sm font-semibold text-mimsa-line outline-none focus:underline"
+          className="min-w-0 flex-1 border-none bg-transparent text-sm font-semibold text-mimsa-black outline-none focus:underline"
         />
         {isBottleneck && (
           <span className="shrink-0 rounded-full bg-alert-red px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white">
@@ -98,16 +98,16 @@ export function StationCard({ station, isBottleneck, unit, onChange }: Props) {
       </div>
 
       <div className="mt-2 flex items-center justify-between border-t border-mimsa-green/15 pt-2">
-        <span className="text-[10px] uppercase tracking-wide text-mimsa-grayLight">
+        <span className="text-[10px] uppercase tracking-wide text-mimsa-gray">
           Capacidad
         </span>
         <span
           className={`font-mono text-sm font-semibold ${
-            isBottleneck ? "text-alert-red" : "text-mimsa-green"
+            isBottleneck ? "text-alert-red" : "text-mimsa-greenDark"
           }`}
         >
           {cap.toLocaleString("es-MX")}{" "}
-          <span className="text-[10px] font-normal text-mimsa-grayLight">
+          <span className="text-[10px] font-normal text-mimsa-gray">
             {unit}/turno
           </span>
         </span>

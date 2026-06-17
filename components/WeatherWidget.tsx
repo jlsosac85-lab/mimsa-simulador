@@ -84,22 +84,22 @@ export function WeatherWidget() {
   }, []);
 
   return (
-    <div className="w-[170px] rounded-xl border border-mimsa-green/30 bg-mimsa-black p-3 shadow-sm">
+    <div className="w-[170px] rounded-xl border border-mimsa-green/30 bg-white p-3 shadow-sm">
       <div className="mb-2 text-center">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-mimsa-green">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-mimsa-greenDark">
           Monterrey
         </div>
-        <div className="text-[9px] text-mimsa-grayLight">Clima · 7 días</div>
+        <div className="text-[9px] text-mimsa-gray">Clima · 7 días</div>
       </div>
 
       {error ? (
-        <div className="py-2 text-center text-[11px] text-mimsa-grayLight">
+        <div className="py-2 text-center text-[11px] text-mimsa-gray">
           Clima no disponible
         </div>
       ) : !days ? (
         <div className="flex flex-col gap-1.5">
           {Array.from({ length: 7 }).map((_, i) => (
-            <div key={i} className="h-7 animate-pulse rounded bg-white/10" />
+            <div key={i} className="h-7 animate-pulse rounded bg-mimsa-line" />
           ))}
         </div>
       ) : (
@@ -111,13 +111,13 @@ export function WeatherWidget() {
                 {weatherIcon(current.code)}
               </span>
               <div className="flex flex-col">
-                <span className="font-mono text-2xl font-bold leading-none text-white">
+                <span className="font-mono text-2xl font-bold leading-none text-mimsa-black">
                   {current.temp}°
                 </span>
-                <span className="text-[9px] leading-tight text-mimsa-green">
+                <span className="text-[9px] leading-tight text-mimsa-greenDark">
                   ahora
                 </span>
-                <span className="text-[9px] leading-tight text-mimsa-grayLight">
+                <span className="text-[9px] leading-tight text-mimsa-gray">
                   {weatherText(current.code)}
                 </span>
               </div>
@@ -132,17 +132,17 @@ export function WeatherWidget() {
               return (
                 <div
                   key={d.date}
-                  className="flex items-center justify-between rounded-md bg-white/5 px-2 py-1"
+                  className="flex items-center justify-between rounded-md bg-mimsa-bgAlt px-2 py-1"
                 >
-                  <span className="w-8 text-[10px] font-medium text-mimsa-grayLight">
+                  <span className="w-8 text-[10px] font-medium text-mimsa-gray">
                     {dow}
                   </span>
                   <span className="text-sm leading-none">
                     {weatherIcon(d.code)}
                   </span>
                   <span className="font-mono text-[11px]">
-                    <span className="font-semibold text-white">{d.max}°</span>
-                    <span className="text-mimsa-grayLight"> {d.min}°</span>
+                    <span className="font-semibold text-mimsa-black">{d.max}°</span>
+                    <span className="text-mimsa-gray"> {d.min}°</span>
                   </span>
                 </div>
               );
