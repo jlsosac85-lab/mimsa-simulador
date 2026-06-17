@@ -55,8 +55,13 @@ export function Simulator({ line }: { line: ProductionLine }) {
   //      (si hay operadores de más, este factor baja y penaliza el exceso).
   // Eficiencia global = producción × mano de obra. El 100% solo se logra
   // produciendo a tope Y con la plantilla justa.
+  // El ideal crece con el turno pero NO supera la capacidad base: una vez
+  // cumplidas las 11 h, el 100% es producir toda la capacidad del turno (si la
+  // línea siguió vaciando WIP después del turno, no se penaliza por el tiempo
+  // extra).
   const baseCapacity = result.effectiveCapacity;
-  const idealNow = baseCapacity * (live.hour / 11);
+  const turnProgress = Math.min(1, live.hour / 11);
+  const idealNow = baseCapacity * turnProgress;
   const prodRatio =
     live.hour > 0.4 && idealNow > 0 ? Math.min(1, live.completed / idealNow) : 0;
 
