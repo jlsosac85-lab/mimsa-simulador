@@ -246,60 +246,6 @@ input[type="number"]::-webkit-outer-spin-button {
   }
 }
 
-/* Montacargas: ciclo de carga — recoge tarima, va al camión, sube horquillas,
-   deposita y regresa vacío. Las 3 animaciones comparten duración (en fase). */
-.fork-drive {
-  animation: forkDrive 7s ease-in-out infinite;
-}
-@keyframes forkDrive {
-  0%,
-  6% {
-    transform: translateX(0);
-  }
-  40%,
-  58% {
-    transform: translateX(200px);
-  }
-  92%,
-  100% {
-    transform: translateX(0);
-  }
-}
-.fork-lift {
-  animation: forkLift 7s ease-in-out infinite;
-}
-@keyframes forkLift {
-  0%,
-  40% {
-    transform: translateY(0);
-  }
-  48%,
-  56% {
-    transform: translateY(-21px);
-  }
-  62%,
-  100% {
-    transform: translateY(0);
-  }
-}
-.fork-load {
-  animation: forkLoad 7s linear infinite;
-}
-@keyframes forkLoad {
-  0%,
-  48% {
-    opacity: 1;
-  }
-  53%,
-  92% {
-    opacity: 0;
-  }
-  96%,
-  100% {
-    opacity: 1;
-  }
-}
-
 /* Tarjeta HUD clara (paneles secundarios) */
 .hud-card {
   background: linear-gradient(155deg, #ffffff 0%, #f4f6ee 72%);
