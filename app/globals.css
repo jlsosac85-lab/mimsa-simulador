@@ -53,7 +53,7 @@ input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   height: 16px;
   width: 16px;
-  background: #94c11c;
+  background: #94c11e;
   border-radius: 50%;
   margin-top: -6px;
   border: 2px solid #1c1c1a;
@@ -67,7 +67,7 @@ input[type="range"]::-moz-range-track {
 input[type="range"]::-moz-range-thumb {
   height: 16px;
   width: 16px;
-  background: #94c11c;
+  background: #94c11e;
   border-radius: 50%;
   border: 2px solid #1c1c1a;
   box-shadow: 0 1px 4px rgba(111, 146, 19, 0.5);
@@ -101,7 +101,7 @@ input[type="number"]::-webkit-outer-spin-button {
   background-image:
     linear-gradient(rgba(111, 146, 19, 0.1) 1px, transparent 1px),
     linear-gradient(90deg, rgba(111, 146, 19, 0.1) 1px, transparent 1px),
-    radial-gradient(circle at 50% 0%, rgba(148, 193, 28, 0.1), transparent 62%);
+    radial-gradient(circle at 50% 0%, rgba(148, 193, 30, 0.1), transparent 62%);
   background-size: 26px 26px, 26px 26px, 100% 100%;
 }
 
@@ -135,6 +135,33 @@ input[type="number"]::-webkit-outer-spin-button {
   );
   box-shadow: 0 10px 24px -14px rgba(28, 28, 26, 0.38),
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* Masthead de marca: panel oscuro MIMSA (negro carbón) con filo verde, para
+   anclar la identidad arriba de la página. */
+.hud-panel-dark {
+  position: relative;
+  background: linear-gradient(160deg, #1c1c1a 0%, #15170f 70%, #0e100b 100%);
+  border: 1px solid rgba(148, 193, 30, 0.55);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 16px) 0,
+    100% 16px,
+    100% 100%,
+    16px 100%,
+    0 calc(100% - 16px)
+  );
+  box-shadow: 0 12px 26px -14px rgba(14, 16, 11, 0.6),
+    inset 0 1px 0 rgba(148, 193, 30, 0.18);
+}
+/* Brackets claros sobre fondo oscuro */
+.hud-panel-dark.hud-bracket::before {
+  border-top-color: #94c11e;
+  border-left-color: #94c11e;
+}
+.hud-panel-dark.hud-bracket::after {
+  border-bottom-color: #94c11e;
+  border-right-color: #94c11e;
 }
 
 /* Corner brackets verdes en las dos esquinas rectas */
@@ -213,7 +240,7 @@ input[type="number"]::-webkit-outer-spin-button {
   background: linear-gradient(
     100deg,
     transparent 40%,
-    rgba(148, 193, 28, 0.16) 50%,
+    rgba(148, 193, 30, 0.16) 50%,
     transparent 60%
   );
   transform: translateX(-100%);
@@ -269,7 +296,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .hud-field:focus {
   border-color: #6f9213;
-  box-shadow: 0 0 0 1px #94c11c;
+  box-shadow: 0 0 0 1px #94c11e;
 }
 .hud-field option {
   background: #ffffff;

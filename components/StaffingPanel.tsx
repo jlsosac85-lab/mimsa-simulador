@@ -96,7 +96,7 @@ export function StaffingPanel({ line, stations, target, onApply, onResetBase }: 
               <div className="relative h-4 flex-1 overflow-hidden rounded bg-mimsa-bgAlt">
                 <div
                   className="h-full rounded"
-                  style={{ width: `${pct}%`, background: full ? "#94C11C" : "#EF9F27" }}
+                  style={{ width: `${pct}%`, background: full ? "#94C11E" : "#C6E07F" }}
                 />
                 <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-mimsa-black">
                   {pct}% del turno

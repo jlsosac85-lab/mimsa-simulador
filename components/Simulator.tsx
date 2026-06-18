@@ -155,17 +155,21 @@ export function Simulator({ line }: { line: ProductionLine }) {
 
   return (
     <div className="w-full">
-      {/* Header */}
-      <header className="hud-panel hud-bracket hud-scan mb-4 flex items-center gap-4 px-6 py-3.5">
-        <MimsaLogo size={46} />
+      {/* Header / masthead de marca */}
+      <header className="hud-panel-dark hud-bracket hud-scan mb-4 flex items-center gap-4 px-6 py-3.5">
+        <MimsaLogo size={48} />
         <div className="min-w-0">
-          <h1 className="font-display text-lg font-bold leading-tight tracking-wide text-mimsa-black">
+          <h1 className="font-display text-lg font-bold leading-tight tracking-wide text-white">
             Simulador de Producción
           </h1>
-          <p className="hud-label text-[11px] text-mimsa-greenDark hud-glow">
+          <p className="hud-label text-[11px] text-mimsa-green">
             {effLine.name.toUpperCase()} · Análisis de cuellos de botella
           </p>
         </div>
+        <span className="ml-auto hidden items-center gap-1.5 hud-label text-[9px] text-mimsa-green/80 sm:flex">
+          <span className="h-1.5 w-1.5 rounded-full bg-mimsa-green animate-pulse" />
+          MIMSA
+        </span>
       </header>
 
       {/* Cintilla de KPIs principales */}

@@ -9,8 +9,9 @@ const config: Config = {
     extend: {
       colors: {
         mimsa: {
-          green: "#94C11C",
+          green: "#94C11E",
           greenDark: "#6F9213",
+          greenSoft: "#C6E07F",
           greenLight: "#F4F9E7",
           black: "#1C1C1A",
           carbon: "#2C2C2A",
@@ -37,8 +38,8 @@ const config: Config = {
         display: ["var(--font-display)", "var(--font-inter)", "sans-serif"],
       },
       boxShadow: {
-        glow: "0 0 0 1px rgba(148,193,28,0.25), 0 0 18px -2px rgba(148,193,28,0.35)",
-        "glow-sm": "0 0 10px -1px rgba(148,193,28,0.45)",
+        glow: "0 0 0 1px rgba(148,193,30,0.25), 0 0 18px -2px rgba(148,193,30,0.35)",
+        "glow-sm": "0 0 10px -1px rgba(148,193,30,0.45)",
       },
     },
   },
