@@ -174,6 +174,68 @@ function StationMachine({ s, matFill }: { s: Station; matFill: string }) {
   );
 }
 
+// Montacargas isométrico (cuerpo ámbar, mástil, horquillas con tarima verde,
+// operario y techo de protección). Anclado por el suelo (origen local = piso).
+function Forklift({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
+  return (
+    <g transform={`translate(${x},${y}) scale(${scale})`}>
+      <ellipse cx={4} cy={7} rx={42} ry={11} fill="#1C1C1A" opacity="0.15" />
+      {/* ruedas */}
+      <ellipse cx={-15} cy={5} rx={9} ry={5.2} fill="#26282b" />
+      <ellipse cx={-15} cy={5} rx={4} ry={2.4} fill="#53575c" />
+      <ellipse cx={13} cy={6.5} rx={7} ry={4.2} fill="#26282b" />
+      <ellipse cx={13} cy={6.5} rx={3} ry={1.8} fill="#53575c" />
+      {/* contrapeso / cuerpo */}
+      <IsoBox cx={-13} cyBase={2} a={17} b={11} H={17} t="#F2AE3E" l="#CC8A20" r="#A86E15" />
+      <rect x={-29} y={-5} width={33} height={2.6} rx={1} fill="#1C1C1A" opacity="0.22" />
+      {/* techo de protección */}
+      <rect x={-27} y={-40} width={2.4} height={26} rx={1} fill="#2b2d30" />
+      <rect x={1} y={-40} width={2.4} height={26} rx={1} fill="#2b2d30" />
+      <IsoBox cx={-13} cyBase={-39} a={17} b={11} H={3} t="#3a3d42" l="#2a2c30" r="#1f2125" />
+      {/* operario */}
+      <g transform="translate(-13,-15)"><WorkerGlyph cx={0} by={0} delay={0.2} /></g>
+      {/* mástil */}
+      <rect x={19} y={-33} width={3} height={39} rx={1} fill="#34373c" />
+      <rect x={25} y={-33} width={3} height={39} rx={1} fill="#34373c" />
+      {/* horquillas + tarima con producto verde */}
+      <polygon points="14,4 36,4 36,6 14,6" fill="#3a3d42" />
+      <IsoBox cx={35} cyBase={1} a={12} b={7} H={4} t="#C0894B" l="#9C6A34" r="#7E5328" />
+      <IsoBox cx={35} cyBase={-3} a={10} b={6} H={11} t="#B6D94E" l="#94C11C" r="#6F9213" />
+    </g>
+  );
+}
+
+// Camión de embarque isométrico (caja blanca con franja verde MIMSA + cabina
+// verde). Anclado por el suelo. Mira hacia la derecha (salida).
+function Truck({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
+  return (
+    <g transform={`translate(${x},${y}) scale(${scale})`}>
+      <ellipse cx={-4} cy={9} rx={88} ry={15} fill="#1C1C1A" opacity="0.15" />
+      {/* ruedas */}
+      {[-54, -32, 46].map((wx, i) => (
+        <g key={i}>
+          <ellipse cx={wx} cy={7} rx={10} ry={6} fill="#222427" />
+          <ellipse cx={wx} cy={7} rx={4.5} ry={2.8} fill="#53575c" />
+        </g>
+      ))}
+      {/* chasis */}
+      <IsoBox cx={-10} cyBase={3} a={62} b={22} H={6} t="#3a3d42" l="#26282b" r="#1c1e21" />
+      {/* caja / trailer */}
+      <IsoBox cx={-18} cyBase={-3} a={48} b={22} H={36} t="#EEF0EA" l="#CDD2C8" r="#AEB4A8" />
+      {/* franja verde MIMSA sobre el costado del trailer */}
+      <polygon points="-18,-2.9 30,-24.9 30,-19.9 -18,2.1" fill="#94C11C" opacity="0.95" />
+      {/* puerta trasera (líneas) */}
+      <line x1={-18} y1={-18} x2={-18} y2={18} stroke="#AEB4A8" strokeWidth="1" />
+      {/* cabina */}
+      <IsoBox cx={52} cyBase={-1} a={16} b={16} H={26} t="#A6CE3A" l="#7AA31E" r="#5D7F16" />
+      {/* parabrisas */}
+      <polygon points="52,-13 68,-27 68,-19 52,-5" fill="#2b3a44" opacity="0.85" />
+      {/* defensa */}
+      <polygon points="68,-2 74,1 74,5 68,4" fill="#2b2d30" />
+    </g>
+  );
+}
+
 // Cubo isometrico de estacion
 const ST_A = 32;
 const ST_B = 15;
@@ -191,6 +253,7 @@ const PAL_ROW_H = 138;
 const PAL_PER_ROW = 4;
 const PSTACK = { nx: 3, ny: 3, nz: 5, stepX: 7.5, stepY: 3.6, stepZ: 6.4, r: 3.1 };
 const PAL_CAP = PSTACK.nx * PSTACK.ny * PSTACK.nz;
+const DOCK_H = 172; // muelle de embarque al fondo (almacén · montacargas · camión)
 
 function palletCount(target: number, palletSize: number): number {
   return Math.max(1, Math.ceil(target / palletSize));
@@ -207,9 +270,14 @@ function palletGeom(i: number, n: number) {
   return { cx, baseY };
 }
 
-function viewBoxHeight(target: number, palletSize: number): number {
+// Y donde termina la cuadrícula de tarimas (antes del muelle de embarque).
+function palletsBottomY(target: number, palletSize: number): number {
   const rows = Math.ceil(palletCount(target, palletSize) / PAL_PER_ROW);
   return PALLET_TOP + 70 + (rows - 1) * PAL_ROW_H + 78;
+}
+
+function viewBoxHeight(target: number, palletSize: number): number {
+  return palletsBottomY(target, palletSize) + DOCK_H;
 }
 
 function isoStack(
@@ -1020,8 +1088,8 @@ export function PlantLayout({
         <text x={line.assembly === "or" ? 172 : 40 + line.pieceTypes.length * 132} y={LEGEND_Y + 3} fontSize="9" fill="#5F5E5A">Cada bolita = {line.ballUnits} unidades</text>
 
         {/* Titulo zona de tarimas */}
-        <text x="20" y={TITLE_Y} fontSize="11" fontWeight="700" fill="#1C1C1A">PRODUCTO TERMINADO</text>
-        <text id="pallet-summary" x="200" y={TITLE_Y} fontSize="10" fill="#5F5E5A">
+        <text x="20" y={TITLE_Y} fontSize="11" fontWeight="700" fill="#1C1C1A">ALMACÉN · PRODUCTO TERMINADO</text>
+        <text id="pallet-summary" x="20" y={TITLE_Y + 15} fontSize="10" fill="#5F5E5A">
           Tarimas llenas: 0/{nPal} · 0 marcos terminados
         </text>
 
@@ -1075,6 +1143,42 @@ export function PlantLayout({
             </g>
           );
         })}
+
+        {/* ===== Muelle de embarque: almacén · montacargas · camión ===== */}
+        {(() => {
+          const dockTop = palletsBottomY(target, line.palletSize);
+          const fy = dockTop + 96; // línea de piso del muelle
+          return (
+            <g>
+              {/* piso del andén */}
+              <rect x={24} y={dockTop + 18} width={712} height={132} rx={10} fill="#EAEDE0" stroke="#C7DC8A" strokeWidth="1.5" />
+              <rect x={24} y={dockTop + 18} width={712} height={20} rx={10} fill="#DCE7C4" />
+              {/* línea de carril */}
+              <line x1={40} y1={fy + 26} x2={720} y2={fy + 26} stroke="#94C11C" strokeWidth="2" strokeDasharray="10 8" opacity="0.5" />
+              <text x={40} y={dockTop + 44} fontSize="11" fontWeight="700" fill="#1C1C1A" style={{ letterSpacing: "0.06em" }}>EMBARQUE · DESPACHO</text>
+
+              {/* tarimas en espera de carga */}
+              <g>
+                {[0, 1].map((i) => {
+                  const px = 360 + i * 70;
+                  return (
+                    <g key={`stage-${i}`}>
+                      <ellipse cx={px} cy={fy + 8} rx={26} ry={7} fill="#1C1C1A" opacity="0.13" />
+                      <IsoBox cx={px} cyBase={fy + 4} a={22} b={11} H={6} t="#C0894B" l="#9C6A34" r="#7E5328" />
+                      <IsoBox cx={px} cyBase={fy - 2} a={18} b={9} H={16} t="#B6D94E" l="#94C11C" r="#6F9213" />
+                    </g>
+                  );
+                })}
+              </g>
+
+              {/* montacargas llevando una tarima hacia el camión */}
+              <Forklift x={210} y={fy + 6} scale={1.05} />
+
+              {/* camión de embarque a la derecha */}
+              <Truck x={585} y={fy} scale={1.0} />
+            </g>
+          );
+        })()}
       </svg>
     </div>
   );
