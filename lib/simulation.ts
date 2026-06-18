@@ -146,6 +146,18 @@ export function requiredPeople(line: ProductionLine, s: Station): number {
   return Math.max(1, Math.round(s.ratePerHour / prod));
 }
 
+// Personas por estacion RECOMENDADAS para cubrir un objetivo de turno dado,
+// usando la ventana de turno de la estacion a su productividad por persona.
+// Mantiene la eficiencia: la plantilla justa para procesar la demanda
+// (objetivo x fraccion de flujo) dentro del turno, sin faltantes ni exceso.
+export function peopleForTarget(line: ProductionLine, s: Station, target: number): number {
+  const perPerson = line.stdProductivity[s.id] ?? s.ratePerHour; // u/persona/hora
+  const share = s.flowShare && s.flowShare > 0 ? s.flowShare : 1;
+  const perPersonShift = perPerson * s.hours; // unidades por persona en el turno
+  if (perPersonShift <= 0) return 1;
+  return Math.max(1, Math.ceil((target * share) / perPersonShift));
+}
+
 // ============================================================
 // Configuracion de cada linea
 // ============================================================
