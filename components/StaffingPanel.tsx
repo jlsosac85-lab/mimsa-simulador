@@ -1,51 +1,49 @@
 "use client";
 
-import { Station, ProductionLine, requiredPeople } from "@/lib/simulation";
+import { Station, ProductionLine, peopleForTarget } from "@/lib/simulation";
 
 interface Props {
   line: ProductionLine;
   stations: Station[];
-  /** Meta de producción del turno (para la utilización real por estación). */
+  /** Meta de producción del turno. Mueve la sugerencia de plantilla. */
   target: number;
 }
 
-// Comparativo de plantilla: personas asignadas (inputs) vs. personas que el
-// ritmo de cada estacion realmente requiere. Detecta sobre-dotacion (exceso)
-// y, por separado, el tiempo muerto de los operadores necesarios.
+// Recomendador de plantilla: para el OBJETIVO fijado, sugiere las personas por
+// estación que mantienen la línea eficiente durante el turno (la plantilla justa
+// para procesar la demanda sin faltantes ni exceso) y la compara con lo que está
+// seteado en las estaciones. La barra muestra qué parte del turno opera la
+// estación (tiempo muerto del operador) a ese objetivo.
 export function StaffingPanel({ line, stations, target }: Props) {
   const TURN = Math.max(11, ...stations.map((s) => s.hours));
 
   const rows = stations.map((s) => {
-    const need = requiredPeople(line, s); // operadores que pide el ritmo
-    // Tiempo de trabajo real de la estación = horas necesarias para cubrir su
-    // demanda (target × fracción de flujo) a su ritmo. La barra es esa fracción
-    // del turno; el resto es tiempo muerto del operador. Esto sí varía por
-    // estación y responde al target en todas las líneas (no solo Marcos).
+    const need = peopleForTarget(line, s, target); // plantilla sugerida p/ objetivo
     const share = s.flowShare && s.flowShare > 0 ? s.flowShare : 1;
     const workingH = s.ratePerHour > 0 ? (target * share) / s.ratePerHour : 0;
     const util = TURN > 0 ? Math.min(1, workingH / TURN) : 0;
-    const excess = Math.max(0, s.people - need);
-    const missing = Math.max(0, need - s.people);
-    const idleH = Math.max(0, TURN - workingH);
-    return { id: s.id, name: s.name, people: s.people, need, util, excess, missing, idleH };
+    const excess = Math.max(0, s.people - need); // operadores de más
+    const missing = Math.max(0, need - s.people); // operadores que faltan
+    return { id: s.id, name: s.name, people: s.people, need, util, excess, missing };
   });
 
   const totalActual = rows.reduce((a, r) => a + r.people, 0);
   const totalNeed = rows.reduce((a, r) => a + r.need, 0);
-  const totalExcess = rows.reduce((a, r) => a + r.excess, 0);
+  const diff = totalActual - totalNeed; // + sobran, - faltan
 
   return (
     <div className="hud-card p-4">
       <div className="mb-1 flex items-baseline justify-between">
         <h3 className="text-sm font-semibold text-mimsa-black">
-          Plantilla en turno — actual vs. necesaria
+          Plantilla sugerida para el objetivo — vs. lo asignado
         </h3>
         <span className="text-[11px] text-mimsa-gray">turno de {TURN} h</span>
       </div>
       <p className="mb-3 text-[11px] text-mimsa-gray">
-        “Necesarias” son los operadores que el ritmo de la estación justifica. Si
-        asignas más, el resto aparece marcado como exceso. La barra indica qué
-        parte del turno opera la estación (tiempo muerto de los operadores).
+        Para el objetivo de <b className="text-mimsa-greenDark">{target.toLocaleString("es-MX")} {line.unit}/turno</b>,
+        “sugeridas” es la plantilla por estación que cubre su demanda dentro del turno
+        manteniendo la eficiencia (sin faltantes ni exceso). Se compara con lo seteado
+        en cada estación; la barra indica qué parte del turno opera la estación.
       </p>
 
       <div className="space-y-2">
@@ -58,6 +56,7 @@ export function StaffingPanel({ line, stations, target }: Props) {
               className={`flex items-center gap-3 rounded-md px-1.5 py-1 ${
                 r.excess > 0 ? "bg-alert-redLight" : ""
               }`}
+              style={r.missing > 0 ? { background: "rgba(239,159,39,0.12)" } : undefined}
             >
               <div className="w-28 shrink-0 truncate text-xs font-medium text-mimsa-black">
                 {r.name}
@@ -72,26 +71,22 @@ export function StaffingPanel({ line, stations, target }: Props) {
                 </span>
               </div>
               <div className="w-12 shrink-0 text-center text-xs">
-                <div className={`font-semibold ${r.excess > 0 ? "text-alert-red" : "text-mimsa-black"}`}>
-                  {r.people}
-                </div>
-                <div className="text-[9px] text-mimsa-gray">actual</div>
+                <div className="font-semibold text-mimsa-black">{r.people}</div>
+                <div className="text-[9px] text-mimsa-gray">asignadas</div>
               </div>
               <div className="w-12 shrink-0 text-center text-xs">
                 <div className="font-semibold text-mimsa-greenDark">{r.need}</div>
-                <div className="text-[9px] text-mimsa-gray">necesarias</div>
+                <div className="text-[9px] text-mimsa-gray">sugeridas</div>
               </div>
               <div className="w-28 shrink-0 text-right text-[10px]">
-                {r.excess > 0 ? (
-                  <span className="font-semibold text-alert-red">
-                    exceso {r.excess} op.
+                {r.missing > 0 ? (
+                  <span className="font-semibold" style={{ color: "#C77F12" }}>
+                    + agrega {r.missing} op.
                   </span>
-                ) : r.missing > 0 ? (
-                  <span style={{ color: "#EF9F27" }}>faltan {r.missing} op.</span>
-                ) : r.idleH > 0.1 ? (
-                  <span className="text-mimsa-gray">{r.idleH.toFixed(1)} h muertas/op</span>
+                ) : r.excess > 0 ? (
+                  <span className="font-semibold text-alert-red">− quita {r.excess} op.</span>
                 ) : (
-                  <span className="text-mimsa-greenDark">a tope</span>
+                  <span className="text-mimsa-greenDark">óptimo ✓</span>
                 )}
               </div>
             </div>
@@ -101,17 +96,23 @@ export function StaffingPanel({ line, stations, target }: Props) {
 
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-mimsa-green/15 pt-3 text-xs">
         <span className="text-mimsa-black">
-          Plantilla actual: <b>{totalActual}</b> operadores
+          Asignada: <b>{totalActual}</b> op.
         </span>
         <span className="text-mimsa-black">
-          Necesaria por ritmo: <b className="text-mimsa-greenDark">{totalNeed}</b>
+          Sugerida p/ objetivo: <b className="text-mimsa-greenDark">{totalNeed}</b> op.
         </span>
-        {totalExcess > 0 ? (
+        {diff === 0 ? (
+          <span className="font-semibold text-mimsa-greenDark">
+            Plantilla óptima para el objetivo ✓
+          </span>
+        ) : diff > 0 ? (
           <span className="font-semibold text-alert-red">
-            Exceso de {totalExcess} operador{totalExcess > 1 ? "es" : ""} en la línea
+            Sobran {diff} operador{diff > 1 ? "es" : ""} — reasignables a otra línea
           </span>
         ) : (
-          <span className="text-mimsa-greenDark">Dotación balanceada · sin exceso</span>
+          <span className="font-semibold" style={{ color: "#C77F12" }}>
+            Faltan {-diff} operador{-diff > 1 ? "es" : ""} para sostener el objetivo
+          </span>
         )}
       </div>
     </div>
