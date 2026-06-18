@@ -66,7 +66,7 @@ export function StaffingPanel({ line, stations, target, onApply, onResetBase }: 
                   : "bg-mimsa-green text-mimsa-black hover:opacity-90"
               }`}
             >
-              {diff === 0 ? "✓ Plantilla óptima" : "⇩ Aplicar sugerencia"}
+              {diff === 0 ? "✓ Plantilla óptima" : "⇩ Aplicar a todas"}
             </button>
           )}
         </div>
@@ -110,13 +110,28 @@ export function StaffingPanel({ line, stations, target, onApply, onResetBase }: 
                 <div className="font-semibold text-mimsa-greenDark">{r.need}</div>
                 <div className="text-[9px] text-mimsa-gray">sugeridas</div>
               </div>
-              <div className="w-28 shrink-0 text-right text-[10px]">
-                {r.missing > 0 ? (
-                  <span className="font-semibold" style={{ color: "#C77F12" }}>
-                    + agrega {r.missing} op.
-                  </span>
-                ) : r.excess > 0 ? (
-                  <span className="font-semibold text-alert-red">− quita {r.excess} op.</span>
+              <div className="flex w-32 shrink-0 flex-col items-end gap-0.5 text-[10px]">
+                {r.missing > 0 || r.excess > 0 ? (
+                  <>
+                    <span
+                      className="font-semibold"
+                      style={{ color: r.missing > 0 ? "#C77F12" : "#C0392B" }}
+                    >
+                      {r.missing > 0
+                        ? `+ agrega ${r.missing} op.`
+                        : `− quita ${r.excess} op.`}
+                    </span>
+                    {onApply && (
+                      <button
+                        type="button"
+                        onClick={() => onApply([{ id: r.id, people: r.need }])}
+                        title={`Aplicar la sugerencia solo a ${r.name} (dejar ${r.need} op.)`}
+                        className="rounded border border-mimsa-green/50 bg-mimsa-green/15 px-2 py-0.5 text-[9.5px] font-semibold text-mimsa-greenDark transition-colors hover:bg-mimsa-green/30"
+                      >
+                        ⇩ Aplicar
+                      </button>
+                    )}
+                  </>
                 ) : (
                   <span className="text-mimsa-greenDark">óptimo ✓</span>
                 )}
