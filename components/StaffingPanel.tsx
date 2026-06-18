@@ -5,20 +5,28 @@ import { Station, ProductionLine, requiredPeople } from "@/lib/simulation";
 interface Props {
   line: ProductionLine;
   stations: Station[];
+  /** Meta de producción del turno (para la utilización real por estación). */
+  target: number;
 }
 
 // Comparativo de plantilla: personas asignadas (inputs) vs. personas que el
 // ritmo de cada estacion realmente requiere. Detecta sobre-dotacion (exceso)
 // y, por separado, el tiempo muerto de los operadores necesarios.
-export function StaffingPanel({ line, stations }: Props) {
+export function StaffingPanel({ line, stations, target }: Props) {
   const TURN = Math.max(11, ...stations.map((s) => s.hours));
 
   const rows = stations.map((s) => {
     const need = requiredPeople(line, s); // operadores que pide el ritmo
-    const util = Math.min(1, s.hours / TURN); // parte del turno que opera
+    // Tiempo de trabajo real de la estación = horas necesarias para cubrir su
+    // demanda (target × fracción de flujo) a su ritmo. La barra es esa fracción
+    // del turno; el resto es tiempo muerto del operador. Esto sí varía por
+    // estación y responde al target en todas las líneas (no solo Marcos).
+    const share = s.flowShare && s.flowShare > 0 ? s.flowShare : 1;
+    const workingH = s.ratePerHour > 0 ? (target * share) / s.ratePerHour : 0;
+    const util = TURN > 0 ? Math.min(1, workingH / TURN) : 0;
     const excess = Math.max(0, s.people - need);
     const missing = Math.max(0, need - s.people);
-    const idleH = Math.max(0, TURN - s.hours);
+    const idleH = Math.max(0, TURN - workingH);
     return { id: s.id, name: s.name, people: s.people, need, util, excess, missing, idleH };
   });
 

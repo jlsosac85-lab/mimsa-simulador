@@ -366,7 +366,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
 
       {/* Comparativo de plantilla */}
       <section className="mb-4">
-        <StaffingPanel line={effLine} stations={stations} />
+        <StaffingPanel line={effLine} stations={stations} target={params.targetMarcos} />
       </section>
 
       {/* Resultados */}
