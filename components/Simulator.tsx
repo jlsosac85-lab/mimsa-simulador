@@ -213,6 +213,11 @@ export function Simulator({ line }: { line: ProductionLine }) {
         </label>
       </section>
 
+      {/* Plantilla sugerida por estacion para el objetivo (reactiva al slider) */}
+      <section className="mb-4">
+        <StaffingPanel line={effLine} stations={stations} target={params.targetMarcos} />
+      </section>
+
       {/* Opciones especificas de la linea Fibrex */}
       {line.id === "fibrex" && (
         <section className="hud-card-green mb-4 grid gap-3 p-4 sm:grid-cols-3">
@@ -362,11 +367,6 @@ export function Simulator({ line }: { line: ProductionLine }) {
           mode={startMode}
           onTick={setLive}
         />
-      </section>
-
-      {/* Comparativo de plantilla */}
-      <section className="mb-4">
-        <StaffingPanel line={effLine} stations={stations} target={params.targetMarcos} />
       </section>
 
       {/* Resultados */}
