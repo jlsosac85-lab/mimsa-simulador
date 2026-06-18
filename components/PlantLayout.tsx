@@ -246,10 +246,15 @@ function Forklift({ x, y, scale = 1 }: { x: number; y: number; scale?: number })
       {/* mástil */}
       <rect x={19} y={-33} width={3} height={39} rx={1} fill="#34373c" />
       <rect x={25} y={-33} width={3} height={39} rx={1} fill="#34373c" />
-      {/* horquillas + tarima con producto verde */}
-      <polygon points="14,4 36,4 36,6 14,6" fill="#3a3d42" />
-      <IsoBox cx={35} cyBase={1} a={12} b={7} H={4} t="#C0894B" l="#9C6A34" r="#7E5328" />
-      <IsoBox cx={35} cyBase={-3} a={10} b={6} H={11} t="#B6D94E" l="#94C11C" r="#6F9213" />
+      {/* carro de horquillas: sube/baja para depositar en el camión */}
+      <g className="fork-lift">
+        <polygon points="14,4 36,4 36,6 14,6" fill="#3a3d42" />
+        {/* tarima con producto verde: aparece al recoger, desaparece al depositar */}
+        <g className="fork-load">
+          <IsoBox cx={35} cyBase={1} a={12} b={7} H={4} t="#C0894B" l="#9C6A34" r="#7E5328" />
+          <IsoBox cx={35} cyBase={-3} a={10} b={6} H={11} t="#B6D94E" l="#94C11C" r="#6F9213" />
+        </g>
+      </g>
     </g>
   );
 }
@@ -1216,10 +1221,10 @@ export function PlantLayout({
               <line x1={40} y1={fy + 26} x2={720} y2={fy + 26} stroke="#94C11C" strokeWidth="2" strokeDasharray="10 8" opacity="0.5" />
               <text x={40} y={dockTop + 44} fontSize="11" fontWeight="700" fill="#1C1C1A" style={{ letterSpacing: "0.06em" }}>EMBARQUE · DESPACHO</text>
 
-              {/* tarimas en espera de carga */}
+              {/* tarimas en espera de carga (cola) */}
               <g>
                 {[0, 1].map((i) => {
-                  const px = 350 + i * 66;
+                  const px = 150 + i * 68;
                   return (
                     <g key={`stage-${i}`}>
                       <ellipse cx={px} cy={fy + 8} rx={26} ry={7} fill="#1C1C1A" opacity="0.13" />
@@ -1250,9 +1255,9 @@ export function PlantLayout({
                 );
               })()}
 
-              {/* montacargas: va y viene entre las tarimas y el camión */}
-              <g className="forklift-move">
-                <Forklift x={210} y={fy + 6} scale={1.05} />
+              {/* montacargas: recoge una tarima, la lleva al camión y regresa */}
+              <g className="fork-drive">
+                <Forklift x={300} y={fy + 6} scale={1.05} />
               </g>
 
               {/* camión de embarque a la derecha */}
