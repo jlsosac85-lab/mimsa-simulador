@@ -78,6 +78,102 @@ function darken(hex: string, f: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
+// Operario isométrico simple: casco verde MIMSA + chaleco hi-vis ámbar.
+function WorkerGlyph({ cx, by, delay }: { cx: number; by: number; delay: number }) {
+  return (
+    <g className="op-bob" style={{ animationDelay: `${delay}s` }}>
+      {/* sombra */}
+      <ellipse cx={cx} cy={by} rx={3.6} ry={1.3} fill="#1C1C1A" opacity="0.2" />
+      {/* piernas */}
+      <rect x={cx - 2.3} y={by - 4.2} width={1.7} height={4.2} rx={0.6} fill="#37383A" />
+      <rect x={cx + 0.6} y={by - 4.2} width={1.7} height={4.2} rx={0.6} fill="#37383A" />
+      {/* chaleco / torso */}
+      <rect x={cx - 3.1} y={by - 9.8} width={6.2} height={6.2} rx={1.5} fill="#EF9F27" stroke="#8a5b12" strokeWidth="0.4" />
+      {/* franja reflejante */}
+      <rect x={cx - 3.1} y={by - 7.1} width={6.2} height={1.1} fill="#fff7e0" opacity="0.85" />
+      {/* brazos insinuados */}
+      <rect x={cx - 3.7} y={by - 9} width={1.1} height={4} rx={0.5} fill="#d98e1f" />
+      <rect x={cx + 2.6} y={by - 9} width={1.1} height={4} rx={0.5} fill="#d98e1f" />
+      {/* cabeza */}
+      <circle cx={cx} cy={by - 11.7} r={1.95} fill="#E7C9A3" stroke="#2C2C2A" strokeWidth="0.3" />
+      {/* casco */}
+      <path d={`M ${cx - 2.5} ${by - 11.9} a 2.5 2.6 0 0 1 5 0 z`} fill="#94C11C" stroke="#5c7a10" strokeWidth="0.3" />
+      <rect x={cx - 2.9} y={by - 12.1} width={5.8} height={1} rx={0.5} fill="#6F9213" />
+    </g>
+  );
+}
+
+// Cuadrilla: tantos operarios como personas tenga la estación (máx visible 6).
+function Crew({ cx, by, n }: { cx: number; by: number; n: number }) {
+  const vis = Math.min(n, 6);
+  if (vis <= 0) return null;
+  const gap = 7;
+  const startX = cx - ((vis - 1) * gap) / 2;
+  return (
+    <g>
+      {Array.from({ length: vis }).map((_, i) => (
+        <WorkerGlyph key={i} cx={startX + i * gap} by={by} delay={(i % 4) * 0.35} />
+      ))}
+    </g>
+  );
+}
+
+// Caras de una caja isométrica anclada por su base trasera-inferior (cx,cyBase).
+function isoFaces(cx: number, cyBase: number, a: number, b: number, H: number) {
+  const cyTop = cyBase - H;
+  return {
+    top: `${cx},${cyTop - b} ${cx + a},${cyTop} ${cx},${cyTop + b} ${cx - a},${cyTop}`,
+    left: `${cx - a},${cyTop} ${cx},${cyTop + b} ${cx},${cyBase + b} ${cx - a},${cyBase}`,
+    right: `${cx},${cyTop + b} ${cx + a},${cyTop} ${cx + a},${cyBase} ${cx},${cyBase + b}`,
+  };
+}
+
+function IsoBox({
+  cx, cyBase, a, b, H, t, l, r, topId, stroke, sw,
+}: {
+  cx: number; cyBase: number; a: number; b: number; H: number;
+  t: string; l: string; r: string; topId?: string; stroke?: string; sw?: number;
+}) {
+  const f = isoFaces(cx, cyBase, a, b, H);
+  return (
+    <>
+      <polygon points={f.left} fill={l} />
+      <polygon points={f.right} fill={r} />
+      <polygon
+        points={f.top}
+        fill={t}
+        {...(topId ? { id: topId } : {})}
+        {...(stroke ? { stroke, strokeWidth: sw ?? 1, strokeLinejoin: "round" } : {})}
+      />
+    </>
+  );
+}
+
+// Máquina/puesto de trabajo isométrico ilustrado para una estación.
+function StationMachine({ s, matFill }: { s: Station; matFill: string }) {
+  const cx = s.x;
+  const y = s.y;
+  const matPts = `${cx},${y + 30 - 18} ${cx + 44},${y + 30} ${cx},${y + 30 + 18} ${cx - 44},${y + 30}`;
+  return (
+    <g>
+      {/* tapete de piso */}
+      <polygon points={matPts} fill={matFill} stroke="#C7DC8A" strokeWidth="1.5" strokeLinejoin="round" />
+      {/* sombra de contacto */}
+      <ellipse cx={cx} cy={y + 32} rx={28} ry={8.5} fill="#1C1C1A" opacity="0.14" />
+      {/* cuerpo de la máquina (acero) */}
+      <IsoBox cx={cx} cyBase={y + 20} a={26} b={10} H={18} t="#C2C6CC" l="#8E949B" r="#6C7178" />
+      {/* base/zócalo oscuro */}
+      <IsoBox cx={cx} cyBase={y + 26} a={28} b={11} H={6} t="#6C7178" l="#4c5057" r="#3a3d42" />
+      {/* panel de control con luz verde */}
+      <IsoBox cx={cx + 21} cyBase={y + 18} a={5.5} b={4} H={14} t="#23262b" l="#16181c" r="#0e0f12" />
+      <circle cx={cx + 21} cy={y + 2.5} r={2.4} fill="#94C11C" stroke="#3f5610" strokeWidth="0.8" />
+      {/* superficie de trabajo (lleva el id de alerta del cuello) */}
+      <IsoBox cx={cx} cyBase={y + 2} a={28} b={11} H={4} t="#D7DBE0" l="#AEB4BB" r="#9298A0"
+        topId={`cube-top-${s.id}`} stroke={KPI_GREEN} sw={1.3} />
+    </g>
+  );
+}
+
 // Cubo isometrico de estacion
 const ST_A = 32;
 const ST_B = 15;
@@ -842,10 +938,9 @@ export function PlantLayout({
           );
         })()}
 
-        {/* Estaciones: cubos translucidos (paleta KPI) que se llenan por ocupacion */}
-        {stations.map((s) => {
-          const f = cubeFaces(s.x, s.y, ST_A, ST_B, ST_H);
-          const occ = isoStack(s.x, s.y + ST_H / 2 - 3, ESTACK);
+        {/* Estaciones: máquinas isométricas ilustradas con su cuadrilla */}
+        {stations.map((s, si) => {
+          const occ = isoStack(s.x, s.y + ST_H / 2 - 4, ESTACK);
           const occDraw = [...occ].sort((a, b) => a.y - b.y);
           const sp = s.name.indexOf(" ");
           const twoLines = s.name.length > 11 && sp > 0;
@@ -853,18 +948,12 @@ export function PlantLayout({
           const line2 = twoLines ? s.name.slice(sp + 1) : "";
           const nameY = s.y - ST_H / 2 - ST_B - (twoLines ? 24 : 16);
           const capY = nameY + (twoLines ? 20 : 10);
+          const matFill = si % 2 === 0 ? "#E3EFBD" : "#DBEBD2";
           return (
             <g key={s.id}>
-              {/* sombra de contacto (profundidad) */}
-              <ellipse
-                cx={s.x}
-                cy={s.y + ST_B + ST_H / 2 + 1}
-                rx={ST_A * 0.92}
-                ry={ST_B * 0.8}
-                fill="#1C1C1A"
-                opacity="0.16"
-              />
-              {/* bolitas de ocupacion dentro del cubo */}
+              {/* tapete + máquina (la superficie lleva el id de alerta) */}
+              <StationMachine s={s} matFill={matFill} />
+              {/* producto en proceso sobre la máquina (ocupación) */}
               {occDraw.map((c) => (
                 <circle
                   key={`occ-${s.id}-${c.fo}`}
@@ -878,14 +967,8 @@ export function PlantLayout({
                   opacity="0"
                 />
               ))}
-              {/* vidrio translucido con volumen (neón sobre carbón) */}
-              <polygon points={f.top} fill="url(#cubeTopG)" fillOpacity="0.4" />
-              <polygon points={f.left} fill="url(#cubeLeftG)" fillOpacity="0.45" />
-              <polygon points={f.right} fill="url(#cubeRightG)" fillOpacity="0.55" />
-              {/* aristas verde KPI */}
-              <polygon id={`cube-top-${s.id}`} points={f.top} fill="none" stroke={KPI_GREEN} strokeWidth="1.3" />
-              <polygon points={f.left} fill="none" stroke={KPI_GREEN} strokeWidth="1.3" />
-              <polygon points={f.right} fill="none" stroke={KPI_GREEN} strokeWidth="1.3" />
+              {/* operarios al frente (= personas asignadas) */}
+              <Crew cx={s.x} by={s.y + 33} n={s.people} />
               {/* nombre + capacidad arriba */}
               {twoLines ? (
                 <>
@@ -899,7 +982,7 @@ export function PlantLayout({
                 {Math.round(stationCapacity(s))}/t
               </text>
               {/* pendiente + ocupacion debajo */}
-              <text x={s.x} y={s.y + ST_B + ST_H / 2 + 12} textAnchor="middle" fontSize="9" fill="#8A9072">
+              <text x={s.x} y={s.y + 46} textAnchor="middle" fontSize="9" fill="#5F5E5A">
                 Pend:{" "}
                 <tspan id={`q-${s.id}`} fontWeight="600" fill="#1C1C1A">0</tspan> · Ocup.{" "}
                 <tspan id={`u-${s.id}`} fontWeight="700" fill="#6F9213">0%</tspan>
