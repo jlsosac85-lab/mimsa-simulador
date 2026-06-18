@@ -22,7 +22,7 @@ export default function Home() {
         <div className="w-full max-w-5xl min-w-0">
           {/* Selector de linea de produccion */}
           <div className="hud-card mb-4 p-2.5">
-            <div className="hud-label mb-2 px-1 text-[10px] text-mimsa-grayLight">
+            <div className="hud-label mb-2 px-1 text-[10px] text-mimsa-gray">
               Línea de producción a simular
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -35,19 +35,19 @@ export default function Home() {
                     className={`rounded-md border px-3 py-2 text-left transition ${
                       active
                         ? "border-mimsa-green bg-mimsa-green/10 shadow-glow-sm"
-                        : "border-mimsa-green/15 bg-mimsa-panel hover:border-mimsa-green/60"
+                        : "border-mimsa-green/15 bg-mimsa-bgAlt hover:border-mimsa-green/60"
                     }`}
                   >
                     <div
                       className={`font-display text-sm font-bold leading-tight tracking-wide ${
-                        active ? "text-mimsa-green hud-glow" : "text-mimsa-line"
+                        active ? "text-mimsa-greenDark hud-glow" : "text-mimsa-black"
                       }`}
                     >
                       {l.shortName}
                     </div>
                     <div
                       className={`mt-0.5 text-[10px] leading-snug ${
-                        active ? "text-mimsa-green/70" : "text-mimsa-grayLight"
+                        active ? "text-mimsa-greenDark/70" : "text-mimsa-gray"
                       }`}
                     >
                       {l.tagline}

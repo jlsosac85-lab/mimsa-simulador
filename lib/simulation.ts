@@ -9,13 +9,31 @@
 
 export type PieceType = string;
 
+// Definicion base de una estacion, tal como la declara cada linea: el ritmo es
+// el TOTAL por hora con su dotacion base. Al instanciar (makeStations) se deriva
+// el ritmo POR PERSONA para que la capacidad escale con el numero de personas.
+export interface BaseStation {
+  id: string;
+  name: string;
+  people: number;
+  /** Piezas por hora TOTAL de la estacion con su dotacion base. */
+  ratePerHour: number;
+  hours: number;
+  x: number;
+  y: number;
+  fill: string;
+  handles: PieceType[];
+  flowShare?: number;
+}
+
 export interface Station {
   id: string;
   name: string;
-  /** Personas asignadas. */
+  /** Personas asignadas. La capacidad escala linealmente con este valor. */
   people: number;
-  /** Piezas por hora que produce la estacion. */
-  ratePerHour: number;
+  /** Piezas por hora POR PERSONA (constante de la estacion). El ritmo total y
+   *  la capacidad se obtienen multiplicando por las personas asignadas. */
+  ratePerPerson: number;
   /** Horas disponibles de la estacion en el turno. */
   hours: number;
   /** Posicion en el plano (coordenadas SVG). */
@@ -65,7 +83,6 @@ export interface ProductionLine {
   routes: Record<string, string[]>;
   makeStations: () => Station[];
   makeParams: () => GlobalParams;
-  stdProductivity: Record<string, number>;
   /** "and" = el producto requiere 1 de cada tipo (ensamble, p.ej. Marcos).
    *  "or"  = cada pieza de cualquier tipo es un producto terminado (vias
    *           paralelas 50/50, p.ej. Panel y Fibrex). */
@@ -76,8 +93,14 @@ export interface ProductionLine {
   palletSize: number;
 }
 
+/** Ritmo total por hora de la estacion a su dotacion actual. */
+export function stationRatePerHour(s: Station): number {
+  return s.people * s.ratePerPerson;
+}
+
+/** Capacidad de la estacion en el turno = personas x ritmo/persona x horas. */
 export function stationCapacity(s: Station): number {
-  return s.ratePerHour * s.hours;
+  return s.people * s.ratePerPerson * s.hours;
 }
 
 export function evaluate(stations: Station[], params: GlobalParams): SimulationResult {
@@ -138,22 +161,14 @@ export function deriveEdges(routes: Record<string, string[]>): { from: string; t
   return edges;
 }
 
-// Personas necesarias para sostener el ritmo actual de la estacion,
-// segun la productividad estandar (por persona) de la linea.
-export function requiredPeople(line: ProductionLine, s: Station): number {
-  const prod = line.stdProductivity[s.id] ?? s.ratePerHour;
-  if (prod <= 0) return 1;
-  return Math.max(1, Math.round(s.ratePerHour / prod));
-}
-
-// Personas por estacion RECOMENDADAS para cubrir un objetivo de turno dado,
-// usando la ventana de turno de la estacion a su productividad por persona.
-// Mantiene la eficiencia: la plantilla justa para procesar la demanda
-// (objetivo x fraccion de flujo) dentro del turno, sin faltantes ni exceso.
-export function peopleForTarget(line: ProductionLine, s: Station, target: number): number {
-  const perPerson = line.stdProductivity[s.id] ?? s.ratePerHour; // u/persona/hora
+// Personas por estacion RECOMENDADAS para cubrir un objetivo de turno dado.
+// Capacidad por persona en el turno = ratePerPerson x horas. La plantilla justa
+// es la que procesa la demanda (objetivo x fraccion de flujo) dentro del turno,
+// sin faltantes ni exceso. Aplicarla sube capacidad y personal a la vez, porque
+// la capacidad escala con las personas.
+export function peopleForTarget(s: Station, target: number): number {
   const share = s.flowShare && s.flowShare > 0 ? s.flowShare : 1;
-  const perPersonShift = perPerson * s.hours; // unidades por persona en el turno
+  const perPersonShift = s.ratePerPerson * s.hours; // unidades por persona/turno
   if (perPersonShift <= 0) return 1;
   return Math.max(1, Math.ceil((target * share) / perPersonShift));
 }
@@ -171,7 +186,7 @@ interface LineConfig {
   pieceTypes: PieceType[];
   pieceColors: Record<string, string>;
   routes: Record<string, string[]>;
-  stations: Station[];
+  stations: BaseStation[];
   params: GlobalParams;
   assembly: "and" | "or";
   ballUnits: number;
@@ -180,10 +195,6 @@ interface LineConfig {
 
 function buildLine(cfg: LineConfig): ProductionLine {
   const base = cfg.stations;
-  const std: Record<string, number> = {};
-  base.forEach((s) => {
-    std[s.id] = s.people > 0 ? s.ratePerHour / s.people : s.ratePerHour;
-  });
   return {
     id: cfg.id,
     name: cfg.name,
@@ -194,9 +205,21 @@ function buildLine(cfg: LineConfig): ProductionLine {
     pieceColors: cfg.pieceColors,
     routes: cfg.routes,
     makeStations: () =>
-      base.map((s) => ({ ...s, handles: [...s.handles] })),
+      base.map((s) => ({
+        id: s.id,
+        name: s.name,
+        people: s.people,
+        // Ritmo por persona derivado de la dotacion base; queda fijo para que
+        // la capacidad escale al cambiar las personas.
+        ratePerPerson: s.people > 0 ? s.ratePerHour / s.people : s.ratePerHour,
+        hours: s.hours,
+        x: s.x,
+        y: s.y,
+        fill: s.fill,
+        handles: [...s.handles],
+        ...(s.flowShare !== undefined ? { flowShare: s.flowShare } : {}),
+      })),
     makeParams: () => ({ ...cfg.params }),
-    stdProductivity: std,
     assembly: cfg.assembly,
     ballUnits: cfg.ballUnits,
     palletSize: cfg.palletSize,
@@ -204,7 +227,7 @@ function buildLine(cfg: LineConfig): ProductionLine {
 }
 
 // --- LINEA DE MARCOS METALICOS (operativa, base real) ---
-function marcosStations(): Station[] {
+function marcosStations(): BaseStation[] {
   return [
     { id: "roladora", name: "Roladora", people: 2, ratePerHour: 90, hours: 11, x: 120, y: 180, fill: "#94C11C", handles: ["bisagra", "embutido"] },
     { id: "troquel-bisagra", name: "Troquel Bisagra", people: 1, ratePerHour: 240, hours: 4.125, x: 290, y: 100, fill: "#1C1C1A", handles: ["bisagra"] },
@@ -230,7 +253,7 @@ const MARCOS_COLORS: Record<string, string> = {
 // ambas alimentan las tarimas (50 piezas c/u). Cada bolita = 10 unidades.
 const PANEL_A = "lote A";
 const PANEL_B = "lote B";
-function panelStations(): Station[] {
+function panelStations(): BaseStation[] {
   return [
     { id: "corte-madera", name: "Corte Madera", people: 1, ratePerHour: 2500 / 11, hours: 11, x: 100, y: 180, fill: "#94C11C", handles: [PANEL_A, PANEL_B] },
     { id: "guillotina", name: "Guillotina", people: 1, ratePerHour: 400 / 11, hours: 11, x: 225, y: 180, fill: "#94C11C", handles: [PANEL_A, PANEL_B] },
@@ -271,17 +294,17 @@ export const FIBREX_DEFAULTS: FibrexOptions = {
 };
 
 export function makeFibrexLine(opts: FibrexOptions = FIBREX_DEFAULTS): ProductionLine {
-  const pegado: Station =
+  const pegado: BaseStation =
     opts.pegado === "bostoniano"
       ? { id: "pegado", name: "Pegado Bostoniano", people: 6, ratePerHour: 624 / 11, hours: 11, x: 445, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] }
       : { id: "pegado", name: "Pegado Puerta Lisa", people: 3, ratePerHour: 1144 / 11, hours: 11, x: 445, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] };
 
-  const escuadra: Station =
+  const escuadra: BaseStation =
     opts.escuadra === "doble"
       ? { id: "escuadradora", name: "Escuadradora Doble Paso", people: 6, ratePerHour: 1560 / 11, hours: 11, x: 565, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] }
       : { id: "escuadradora", name: "Escuadradora", people: 4, ratePerHour: 780 / 11, hours: 11, x: 565, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] };
 
-  const stations: Station[] = [
+  const stations: BaseStation[] = [
     { id: "corte-madera", name: "Corte Madera", people: 1, ratePerHour: 1040 / 11, hours: 11, x: 90, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] },
     { id: "orificios", name: "Orificios", people: 1, ratePerHour: 1040 / 11, hours: 11, x: 205, y: 180, fill: "#94C11C", handles: [FIBREX_A, FIBREX_B] },
     { id: "mesa-1", name: "Mesa Armado 1", people: 2, ratePerHour: 520 / 11, hours: 11, x: 325, y: 100, fill: "#94C11C", handles: [FIBREX_A], flowShare: 0.5 },

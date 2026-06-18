@@ -1,12 +1,16 @@
 "use client";
 
-import { Station, ProductionLine, peopleForTarget } from "@/lib/simulation";
+import { Station, ProductionLine, peopleForTarget, stationRatePerHour } from "@/lib/simulation";
 
 interface Props {
   line: ProductionLine;
   stations: Station[];
   /** Meta de producción del turno. Mueve la sugerencia de plantilla. */
   target: number;
+  /** Aplica la plantilla sugerida: escribe las personas de cada estación. */
+  onApply?: (assignments: { id: string; people: number }[]) => void;
+  /** Restablece las personas a la plantilla base de la línea. */
+  onResetBase?: () => void;
 }
 
 // Recomendador de plantilla: para el OBJETIVO fijado, sugiere las personas por
@@ -14,13 +18,14 @@ interface Props {
 // para procesar la demanda sin faltantes ni exceso) y la compara con lo que está
 // seteado en las estaciones. La barra muestra qué parte del turno opera la
 // estación (tiempo muerto del operador) a ese objetivo.
-export function StaffingPanel({ line, stations, target }: Props) {
+export function StaffingPanel({ line, stations, target, onApply, onResetBase }: Props) {
   const TURN = Math.max(11, ...stations.map((s) => s.hours));
 
   const rows = stations.map((s) => {
-    const need = peopleForTarget(line, s, target); // plantilla sugerida p/ objetivo
+    const need = peopleForTarget(s, target); // plantilla sugerida p/ objetivo
     const share = s.flowShare && s.flowShare > 0 ? s.flowShare : 1;
-    const workingH = s.ratePerHour > 0 ? (target * share) / s.ratePerHour : 0;
+    const rate = stationRatePerHour(s);
+    const workingH = rate > 0 ? (target * share) / rate : 0;
     const util = TURN > 0 ? Math.min(1, workingH / TURN) : 0;
     const excess = Math.max(0, s.people - need); // operadores de más
     const missing = Math.max(0, need - s.people); // operadores que faltan
@@ -33,11 +38,38 @@ export function StaffingPanel({ line, stations, target }: Props) {
 
   return (
     <div className="hud-card p-4">
-      <div className="mb-1 flex items-baseline justify-between">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-mimsa-black">
           Plantilla sugerida para el objetivo — vs. lo asignado
         </h3>
-        <span className="text-[11px] text-mimsa-gray">turno de {TURN} h</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-mimsa-gray">turno de {TURN} h</span>
+          {onResetBase && (
+            <button
+              type="button"
+              onClick={onResetBase}
+              className="hud-btn rounded-md px-2.5 py-1.5 text-[11px] font-medium"
+            >
+              ↺ Restablecer base
+            </button>
+          )}
+          {onApply && (
+            <button
+              type="button"
+              onClick={() =>
+                onApply(rows.map((r) => ({ id: r.id, people: r.need })))
+              }
+              disabled={diff === 0}
+              className={`rounded-md px-3 py-1.5 text-[11px] font-semibold shadow-glow-sm transition-opacity ${
+                diff === 0
+                  ? "cursor-default bg-mimsa-bgAlt text-mimsa-gray"
+                  : "bg-mimsa-green text-mimsa-black hover:opacity-90"
+              }`}
+            >
+              {diff === 0 ? "✓ Plantilla óptima" : "⇩ Aplicar sugerencia"}
+            </button>
+          )}
+        </div>
       </div>
       <p className="mb-3 text-[11px] text-mimsa-gray">
         Para el objetivo de <b className="text-mimsa-greenDark">{target.toLocaleString("es-MX")} {line.unit}/turno</b>,

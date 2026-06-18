@@ -6,6 +6,7 @@ import {
   PieceType,
   ProductionLine,
   stationCapacity,
+  stationRatePerHour,
   deriveEdges,
 } from "@/lib/simulation";
 
@@ -519,7 +520,7 @@ export function PlantLayout({
     p.state = "serve";
     p.t = 0;
     const mult = lineRef.current.assembly === "and" ? (s.handles.length || 1) : 1;
-    const effRate = s.ratePerHour * mult;
+    const effRate = stationRatePerHour(s) * mult;
     p.serviceTime = effRate > 0 ? lineRef.current.ballUnits / effRate : 999;
   }
 

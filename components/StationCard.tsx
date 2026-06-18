@@ -1,6 +1,6 @@
 "use client";
 
-import { Station, stationCapacity } from "@/lib/simulation";
+import { Station, stationCapacity, stationRatePerHour } from "@/lib/simulation";
 
 interface Props {
   station: Station;
@@ -51,6 +51,7 @@ function NumberField({
 
 export function StationCard({ station, isBottleneck, unit, onChange }: Props) {
   const cap = Math.round(stationCapacity(station));
+  const totalRate = Math.round(stationRatePerHour(station));
 
   return (
     <div
@@ -82,11 +83,11 @@ export function StationCard({ station, isBottleneck, unit, onChange }: Props) {
           onChange={(v) => onChange(station.id, { people: v })}
         />
         <NumberField
-          label={`${unit}/hora`}
-          value={station.ratePerHour}
+          label={`${unit}/h·pers`}
+          value={station.ratePerPerson}
           min={0}
-          step={10}
-          onChange={(v) => onChange(station.id, { ratePerHour: v })}
+          step={5}
+          onChange={(v) => onChange(station.id, { ratePerPerson: v })}
         />
         <NumberField
           label="Horas"
@@ -98,6 +99,15 @@ export function StationCard({ station, isBottleneck, unit, onChange }: Props) {
       </div>
 
       <div className="mt-2 flex items-center justify-between border-t border-mimsa-green/15 pt-2">
+        <span className="text-[10px] uppercase tracking-wide text-mimsa-gray">
+          Ritmo total
+        </span>
+        <span className="font-mono text-[11px] text-mimsa-gray">
+          {totalRate.toLocaleString("es-MX")} {unit}/h
+          <span className="text-mimsa-gray/60"> ({station.people}×{station.ratePerPerson})</span>
+        </span>
+      </div>
+      <div className="mt-1 flex items-center justify-between">
         <span className="text-[10px] uppercase tracking-wide text-mimsa-gray">
           Capacidad
         </span>

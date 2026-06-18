@@ -9,7 +9,9 @@ import {
   FIBREX_DEFAULTS,
   makeFibrexLine,
   evaluate,
-  requiredPeople,
+  peopleForTarget,
+  stationCapacity,
+  stationRatePerHour,
 } from "@/lib/simulation";
 import { MimsaLogo } from "./MimsaLogo";
 import { KpiStrip } from "./KpiStrip";
@@ -36,9 +38,11 @@ export function Simulator({ line }: { line: ProductionLine }) {
   const [startMode, setStartMode] = useState<"carga" | "transitorio">("carga");
   const [live, setLive] = useState({ hour: 0, completed: 0, wip: 0 });
 
-  // Al cambiar las opciones de Fibrex, regenera estaciones y reinicia.
+  // Al cambiar las opciones de Fibrex (o la línea), regenera estaciones,
+  // restablece el objetivo base de la línea y reinicia.
   useEffect(() => {
     setStations(effLine.makeStations());
+    setParams(effLine.makeParams());
     setRunning(false);
     setLive({ hour: 0, completed: 0, wip: 0 });
     window.dispatchEvent(new Event("mimsa-reset"));
@@ -47,18 +51,11 @@ export function Simulator({ line }: { line: ProductionLine }) {
 
   const result = useMemo(() => evaluate(stations, params), [stations, params]);
 
-  // El objetivo del turno sigue automáticamente a la capacidad cuando ésta
-  // cambia por ajustes en las estaciones (personas, ritmo, horas) o en la
-  // materia prima. Sigue siendo manipulable: mover el slider del objetivo no
-  // altera la capacidad, así que el valor que el usuario fije a mano se respeta
-  // hasta el próximo cambio de capacidad.
-  const capacityTarget = Math.round(result.effectiveCapacity);
-  useEffect(() => {
-    setParams((p) =>
-      p.targetMarcos === capacityTarget ? p : { ...p, targetMarcos: capacityTarget }
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [capacityTarget]);
+  // El objetivo es la variable que fija el usuario; la capacidad lo SIGUE al
+  // ajustar personas, ritmo u horas (ahora la capacidad escala con las
+  // personas). Por eso ya no se auto-igualan: mover el objetivo no toca la
+  // capacidad, y aplicar la plantilla sugerida sube la capacidad hasta cubrir
+  // el objetivo sin que éste se mueva.
 
   // --- Eficiencia de la línea ---
   // Combina dos factores:
@@ -79,7 +76,10 @@ export function Simulator({ line }: { line: ProductionLine }) {
     live.hour > 0.4 && idealNow > 0 ? Math.min(1, live.completed / idealNow) : 0;
 
   const totalPeople = stations.reduce((a, s) => a + s.people, 0);
-  const neededPeople = stations.reduce((a, s) => a + requiredPeople(effLine, s), 0);
+  const neededPeople = stations.reduce(
+    (a, s) => a + peopleForTarget(s, params.targetMarcos),
+    0
+  );
   const staffRatio = totalPeople > 0 ? Math.min(1, neededPeople / totalPeople) : 1;
 
   const measuring = running || live.hour > 0.4;
@@ -90,6 +90,29 @@ export function Simulator({ line }: { line: ProductionLine }) {
   function patchStation(id: string, patch: Partial<Station>) {
     setStations((prev) =>
       prev.map((s) => (s.id === id ? { ...s, ...patch } : s))
+    );
+  }
+
+  // Aplica la plantilla sugerida: escribe en cada estación las personas
+  // recomendadas para el objetivo actual (de un solo clic, sin editar a mano).
+  function applyStaffing(assignments: { id: string; people: number }[]) {
+    setStations((prev) =>
+      prev.map((s) => {
+        const a = assignments.find((x) => x.id === s.id);
+        return a ? { ...s, people: a.people } : s;
+      })
+    );
+  }
+
+  // Restablece las personas a la plantilla base de la línea (sin tocar ritmo,
+  // horas ni objetivo).
+  function resetStaffingBase() {
+    const base = effLine.makeStations();
+    setStations((prev) =>
+      prev.map((s) => {
+        const b = base.find((x) => x.id === s.id);
+        return b ? { ...s, people: b.people } : s;
+      })
     );
   }
 
@@ -106,9 +129,10 @@ export function Simulator({ line }: { line: ProductionLine }) {
       estaciones: stations.map((s) => ({
         nombre: s.name,
         personas: s.people,
-        marcosPorHora: s.ratePerHour,
+        ritmoPorPersona: s.ratePerPerson,
+        marcosPorHora: Math.round(stationRatePerHour(s)),
         horas: s.hours,
-        capacidadTurno: Math.round(s.ratePerHour * s.hours),
+        capacidadTurno: Math.round(stationCapacity(s)),
       })),
       resultado: {
         capacidadSistema: Math.round(result.systemCapacity),
@@ -215,7 +239,13 @@ export function Simulator({ line }: { line: ProductionLine }) {
 
       {/* Plantilla sugerida por estacion para el objetivo (reactiva al slider) */}
       <section className="mb-4">
-        <StaffingPanel line={effLine} stations={stations} target={params.targetMarcos} />
+        <StaffingPanel
+          line={effLine}
+          stations={stations}
+          target={params.targetMarcos}
+          onApply={applyStaffing}
+          onResetBase={resetStaffingBase}
+        />
       </section>
 
       {/* Opciones especificas de la linea Fibrex */}
@@ -386,7 +416,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
             Estaciones — edita personas, ritmo y horas
           </h2>
           <span className="text-[11px] text-mimsa-gray">
-            Capacidad = {effLine.unit}/hora × horas
+            Capacidad = personas × {effLine.unit}/h·persona × horas
           </span>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
