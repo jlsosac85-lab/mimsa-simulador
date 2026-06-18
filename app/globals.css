@@ -230,6 +230,22 @@ input[type="number"]::-webkit-outer-spin-button {
   }
 }
 
+/* Operarios: leve balanceo de "trabajo" */
+.op-bob {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: opBob 1.5s ease-in-out infinite;
+}
+@keyframes opBob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.7px);
+  }
+}
+
 /* Tarjeta HUD clara (paneles secundarios) */
 .hud-card {
   background: linear-gradient(155deg, #ffffff 0%, #f4f6ee 72%);
