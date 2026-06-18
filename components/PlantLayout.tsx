@@ -79,26 +79,29 @@ function darken(hex: string, f: number): string {
 }
 
 // Operario isométrico simple: casco verde MIMSA + chaleco hi-vis ámbar.
-function WorkerGlyph({ cx, by, delay }: { cx: number; by: number; delay: number }) {
+// Dibujado en origen local (pies en 0,0) y colocado/escalado por transform.
+function WorkerGlyph({ cx, by, delay, scale = 1 }: { cx: number; by: number; delay: number; scale?: number }) {
   return (
-    <g className="op-bob" style={{ animationDelay: `${delay}s` }}>
-      {/* sombra */}
-      <ellipse cx={cx} cy={by} rx={3.6} ry={1.3} fill="#1C1C1A" opacity="0.2" />
-      {/* piernas */}
-      <rect x={cx - 2.3} y={by - 4.2} width={1.7} height={4.2} rx={0.6} fill="#37383A" />
-      <rect x={cx + 0.6} y={by - 4.2} width={1.7} height={4.2} rx={0.6} fill="#37383A" />
-      {/* chaleco / torso */}
-      <rect x={cx - 3.1} y={by - 9.8} width={6.2} height={6.2} rx={1.5} fill="#EF9F27" stroke="#8a5b12" strokeWidth="0.4" />
-      {/* franja reflejante */}
-      <rect x={cx - 3.1} y={by - 7.1} width={6.2} height={1.1} fill="#fff7e0" opacity="0.85" />
-      {/* brazos insinuados */}
-      <rect x={cx - 3.7} y={by - 9} width={1.1} height={4} rx={0.5} fill="#d98e1f" />
-      <rect x={cx + 2.6} y={by - 9} width={1.1} height={4} rx={0.5} fill="#d98e1f" />
-      {/* cabeza */}
-      <circle cx={cx} cy={by - 11.7} r={1.95} fill="#E7C9A3" stroke="#2C2C2A" strokeWidth="0.3" />
-      {/* casco */}
-      <path d={`M ${cx - 2.5} ${by - 11.9} a 2.5 2.6 0 0 1 5 0 z`} fill="#94C11C" stroke="#5c7a10" strokeWidth="0.3" />
-      <rect x={cx - 2.9} y={by - 12.1} width={5.8} height={1} rx={0.5} fill="#6F9213" />
+    <g transform={`translate(${cx},${by}) scale(${scale})`}>
+      <g className="op-bob" style={{ animationDelay: `${delay}s` }}>
+        {/* sombra */}
+        <ellipse cx={0} cy={0} rx={3.6} ry={1.3} fill="#1C1C1A" opacity="0.2" />
+        {/* piernas */}
+        <rect x={-2.3} y={-4.2} width={1.7} height={4.2} rx={0.6} fill="#37383A" />
+        <rect x={0.6} y={-4.2} width={1.7} height={4.2} rx={0.6} fill="#37383A" />
+        {/* chaleco / torso */}
+        <rect x={-3.1} y={-9.8} width={6.2} height={6.2} rx={1.5} fill="#EF9F27" stroke="#8a5b12" strokeWidth={0.4} />
+        {/* franja reflejante */}
+        <rect x={-3.1} y={-7.1} width={6.2} height={1.1} fill="#fff7e0" opacity="0.85" />
+        {/* brazos insinuados */}
+        <rect x={-3.7} y={-9} width={1.1} height={4} rx={0.5} fill="#d98e1f" />
+        <rect x={2.6} y={-9} width={1.1} height={4} rx={0.5} fill="#d98e1f" />
+        {/* cabeza */}
+        <circle cx={0} cy={-11.7} r={1.95} fill="#E7C9A3" stroke="#2C2C2A" strokeWidth={0.3} />
+        {/* casco */}
+        <path d={`M -2.5 -11.9 a 2.5 2.6 0 0 1 5 0 z`} fill="#94C11C" stroke="#5c7a10" strokeWidth={0.3} />
+        <rect x={-2.9} y={-12.1} width={5.8} height={1} rx={0.5} fill="#6F9213" />
+      </g>
     </g>
   );
 }
@@ -107,12 +110,12 @@ function WorkerGlyph({ cx, by, delay }: { cx: number; by: number; delay: number 
 function Crew({ cx, by, n }: { cx: number; by: number; n: number }) {
   const vis = Math.min(n, 6);
   if (vis <= 0) return null;
-  const gap = 7;
+  const gap = 9.5;
   const startX = cx - ((vis - 1) * gap) / 2;
   return (
     <g>
       {Array.from({ length: vis }).map((_, i) => (
-        <WorkerGlyph key={i} cx={startX + i * gap} by={by} delay={(i % 4) * 0.35} />
+        <WorkerGlyph key={i} cx={startX + i * gap} by={by} delay={(i % 4) * 0.35} scale={1.35} />
       ))}
     </g>
   );
@@ -149,10 +152,21 @@ function IsoBox({
   );
 }
 
+// Clasifica la estación por su nombre para darle una herramienta distintiva.
+function machineKind(name: string): "saw" | "drill" | "press" | "paint" | "table" {
+  const n = name.toLowerCase();
+  if (n.includes("corte") || n.includes("sierra") || n.includes("escuadr")) return "saw";
+  if (n.includes("orific") || n.includes("taladr") || n.includes("perfor") || n.includes("broca")) return "drill";
+  if (n.includes("pint")) return "paint";
+  if (n.includes("pegad") || n.includes("prensa") || n.includes("armad") || n.includes("ensam") || n.includes("union")) return "press";
+  return "table";
+}
+
 // Máquina/puesto de trabajo isométrico ilustrado para una estación.
 function StationMachine({ s, matFill }: { s: Station; matFill: string }) {
   const cx = s.x;
   const y = s.y;
+  const kind = machineKind(s.name);
   const matPts = `${cx},${y + 30 - 18} ${cx + 44},${y + 30} ${cx},${y + 30 + 18} ${cx - 44},${y + 30}`;
   return (
     <g>
@@ -170,6 +184,41 @@ function StationMachine({ s, matFill }: { s: Station; matFill: string }) {
       {/* superficie de trabajo (lleva el id de alerta del cuello) */}
       <IsoBox cx={cx} cyBase={y + 2} a={28} b={11} H={4} t="#D7DBE0" l="#AEB4BB" r="#9298A0"
         topId={`cube-top-${s.id}`} stroke={KPI_GREEN} sw={1.3} />
+      {/* herramienta distintiva según el tipo de estación */}
+      {kind === "saw" && (
+        <g>
+          <circle cx={cx - 7} cy={y - 8} r={8} fill="#cfd3d8" stroke="#8a9097" strokeWidth="1" />
+          <circle cx={cx - 7} cy={y - 8} r={8} fill="none" stroke="#9aa0a6" strokeWidth="1.2" strokeDasharray="2.4 2.4" />
+          <circle cx={cx - 7} cy={y - 8} r={2} fill="#6c7178" />
+          <rect x={cx - 10} y={y - 1} width={22} height={2} rx={1} fill="#3a3d42" opacity="0.55" />
+        </g>
+      )}
+      {kind === "drill" && (
+        <g>
+          <rect x={cx + 13} y={y - 27} width={3.5} height={29} rx={1} fill="#3a3d42" />
+          <rect x={cx - 4} y={y - 27} width={20} height={4} rx={1.5} fill="#4a4d52" />
+          <rect x={cx - 4} y={y - 23} width={4} height={10} rx={1} fill="#2b2d30" />
+          <rect x={cx - 2.7} y={y - 14} width={1.6} height={7} fill="#9aa0a6" />
+          <circle cx={cx - 1.9} cy={y - 6} r={1.3} fill="#94C11C" />
+        </g>
+      )}
+      {kind === "press" && (
+        <g>
+          <rect x={cx - 17} y={y - 25} width={3} height={25} rx={1} fill="#3a3d42" />
+          <rect x={cx + 14} y={y - 25} width={3} height={25} rx={1} fill="#3a3d42" />
+          <IsoBox cx={cx} cyBase={y - 15} a={20} b={8} H={6} t="#5a5f66" l="#3f444b" r="#2b2f34" />
+        </g>
+      )}
+      {kind === "paint" && (
+        <g>
+          <rect x={cx + 12} y={y - 23} width={3} height={23} rx={1} fill="#3a3d42" />
+          <rect x={cx - 3} y={y - 21} width={17} height={3.5} rx={1.5} fill="#4a4d52" />
+          <rect x={cx - 6} y={y - 20.5} width={4.5} height={5} rx={1} fill="#6c7178" />
+          <circle cx={cx - 7} cy={y - 14} r={2.2} fill="#94C11C" />
+          <circle cx={cx - 10} cy={y - 10} r={1.2} fill="#B6D94E" opacity="0.7" />
+          <circle cx={cx - 12} cy={y - 7} r={1} fill="#B6D94E" opacity="0.5" />
+        </g>
+      )}
     </g>
   );
 }
@@ -254,6 +303,7 @@ const PAL_PER_ROW = 4;
 const PSTACK = { nx: 3, ny: 3, nz: 5, stepX: 7.5, stepY: 3.6, stepZ: 6.4, r: 3.1 };
 const PAL_CAP = PSTACK.nx * PSTACK.ny * PSTACK.nz;
 const DOCK_H = 172; // muelle de embarque al fondo (almacén · montacargas · camión)
+const LOAD_CAP = 18; // unidades visibles cargándose en el camión
 
 function palletCount(target: number, palletSize: number): number {
   return Math.max(1, Math.ceil(target / palletSize));
@@ -806,6 +856,15 @@ export function PlantLayout({
         "es-MX"
       )} ${lineRef.current.unit} terminadas`;
 
+    // Camión: producto cargado proporcional a las tarimas llenas.
+    const nLoad = Math.round((fullPallets / Math.max(1, nPal)) * LOAD_CAP);
+    svg.querySelectorAll("[data-load]").forEach((node) => {
+      const fo = Number((node as SVGElement).getAttribute("data-load"));
+      (node as SVGElement).setAttribute("opacity", fo < nLoad ? "1" : "0");
+    });
+    const tload = svg.querySelector("#truck-load");
+    if (tload) tload.textContent = `Cargado: ${fullPallets}/${nPal}`;
+
     // Flecha que apunta a la tarima que se esta llenando
     const arrow = svg.querySelector("#pallet-arrow") as SVGPathElement | null;
     const lastR = lineRef.current.routes[lineRef.current.pieceTypes[0]] || [];
@@ -1160,7 +1219,7 @@ export function PlantLayout({
               {/* tarimas en espera de carga */}
               <g>
                 {[0, 1].map((i) => {
-                  const px = 360 + i * 70;
+                  const px = 350 + i * 66;
                   return (
                     <g key={`stage-${i}`}>
                       <ellipse cx={px} cy={fy + 8} rx={26} ry={7} fill="#1C1C1A" opacity="0.13" />
@@ -1171,11 +1230,33 @@ export function PlantLayout({
                 })}
               </g>
 
-              {/* montacargas llevando una tarima hacia el camión */}
-              <Forklift x={210} y={fy + 6} scale={1.05} />
+              {/* producto cargándose en el camión (proporcional a tarimas llenas) */}
+              {(() => {
+                const lx = 500;
+                const lbaseY = fy + 2;
+                const cells = isoStack(lx, lbaseY, { nx: 3, ny: 2, nz: 3, stepX: 6, stepY: 3, stepZ: 6 });
+                const draw = [...cells].sort((a, b) => a.y - b.y);
+                return (
+                  <g>
+                    <ellipse cx={lx} cy={lbaseY + 6} rx={24} ry={7} fill="#1C1C1A" opacity="0.13" />
+                    <IsoBox cx={lx} cyBase={lbaseY + 4} a={22} b={11} H={5} t="#C0894B" l="#9C6A34" r="#7E5328" />
+                    {draw.map((c) => (
+                      <circle key={`load-${c.fo}`} data-load={c.fo} cx={c.x} cy={c.y} r={3} fill="url(#sphere-green)" stroke="none" opacity="0" />
+                    ))}
+                    <text id="truck-load" x={lx} y={lbaseY + 22} textAnchor="middle" fontSize="9" fontWeight="600" fill="#5F5E5A">
+                      Cargado: 0/{nPal}
+                    </text>
+                  </g>
+                );
+              })()}
+
+              {/* montacargas: va y viene entre las tarimas y el camión */}
+              <g className="forklift-move">
+                <Forklift x={210} y={fy + 6} scale={1.05} />
+              </g>
 
               {/* camión de embarque a la derecha */}
-              <Truck x={585} y={fy} scale={1.0} />
+              <Truck x={590} y={fy} scale={1.0} />
             </g>
           );
         })()}
