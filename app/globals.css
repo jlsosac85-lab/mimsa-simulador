@@ -246,6 +246,25 @@ input[type="number"]::-webkit-outer-spin-button {
   }
 }
 
+/* Montacargas: recorre el andén hacia el camión y regresa. */
+.forklift-move {
+  animation: forkMove 8s ease-in-out infinite;
+}
+@keyframes forkMove {
+  0%,
+  8% {
+    transform: translateX(0);
+  }
+  46%,
+  54% {
+    transform: translateX(300px);
+  }
+  92%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
 /* Tarjeta HUD clara (paneles secundarios) */
 .hud-card {
   background: linear-gradient(155deg, #ffffff 0%, #f4f6ee 72%);
