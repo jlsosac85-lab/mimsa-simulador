@@ -43,6 +43,14 @@ export function ResultsPanel({ line, result, params, liveCompleted }: Props) {
 
   return (
     <div className="hud-card p-4">
+      <div className="hud-head mb-3">
+        <span className="hud-label text-[11px] font-bold text-white">
+          Diagnóstico de la línea
+        </span>
+        <span className="hud-label text-[9px] text-mimsa-green/80">
+          resultado del turno
+        </span>
+      </div>
       <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Metric
           label="Cumplimiento (vivo)"

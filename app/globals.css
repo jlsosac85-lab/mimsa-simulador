@@ -199,6 +199,21 @@ input[type="number"]::-webkit-outer-spin-button {
   text-transform: uppercase;
 }
 
+/* Cintilla negra de encabezado de sección (misma identidad que el masthead):
+   fondo carbón, filo verde a la izquierda y borde verde tenue. */
+.hud-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: linear-gradient(160deg, #1c1c1a 0%, #15170f 100%);
+  border: 1px solid rgba(148, 193, 30, 0.4);
+  border-left: 3px solid #94c11e;
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  box-shadow: 0 6px 16px -12px rgba(14, 16, 11, 0.6);
+}
+
 /* Línea de flujo: trazo de circuito con dash en movimiento */
 .flow-line {
   stroke-dasharray: 6 7;

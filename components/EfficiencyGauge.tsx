@@ -47,12 +47,12 @@ export function EfficiencyGauge({
 
   return (
     <div className="hud-card mb-3 px-4 py-3">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+      <div className="hud-head mb-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="hud-label text-[11px] font-semibold text-mimsa-gray">
+          <span className="hud-label text-[11px] font-bold text-white">
             Eficiencia de la línea
           </span>
-          <span className="text-[10px] text-mimsa-gray/80">
+          <span className="text-[10px] text-mimsa-green/70">
             100% = {Math.round(baseCapacity).toLocaleString("es-MX")} {unit}/turno
           </span>
         </div>

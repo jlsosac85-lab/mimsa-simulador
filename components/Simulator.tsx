@@ -176,7 +176,16 @@ export function Simulator({ line }: { line: ProductionLine }) {
       <KpiStrip line={effLine} stations={stations} params={params} result={result} />
 
       {/* Parametros globales */}
-      <section className="hud-card mb-4 grid gap-3 p-4 sm:grid-cols-3">
+      <section className="hud-card mb-4 p-4">
+        <div className="hud-head mb-3">
+          <span className="hud-label text-[10px] font-bold text-white">
+            Parámetros del turno
+          </span>
+          <span className="hud-label text-[9px] text-mimsa-green/80">
+            objetivo · materia prima · días
+          </span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-1.5">
           <span className="hud-label text-[10px] text-mimsa-gray">
             Objetivo {effLine.unit}/turno
@@ -239,6 +248,7 @@ export function Simulator({ line }: { line: ProductionLine }) {
             className="hud-field rounded-md px-2 py-1.5 text-sm font-medium"
           />
         </label>
+        </div>
       </section>
 
       {/* Plantilla sugerida por estacion para el objetivo (reactiva al slider) */}
@@ -415,11 +425,11 @@ export function Simulator({ line }: { line: ProductionLine }) {
 
       {/* Estaciones editables */}
       <section>
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="hud-label text-xs font-semibold text-mimsa-greenDark">
+        <div className="hud-head mb-2">
+          <h2 className="hud-label text-xs font-bold text-white">
             Estaciones — edita personas, ritmo y horas
           </h2>
-          <span className="text-[11px] text-mimsa-gray">
+          <span className="text-[11px] text-mimsa-green/80">
             Capacidad = personas × {effLine.unit}/h·persona × horas
           </span>
         </div>

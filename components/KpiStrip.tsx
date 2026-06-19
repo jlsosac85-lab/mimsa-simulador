@@ -64,12 +64,12 @@ export function KpiStrip({ line, stations, params, result }: Props) {
   return (
     <div className="hud-panel hud-bracket mb-4 overflow-hidden">
       {/* Cabecera de telemetría */}
-      <div className="flex items-center justify-between border-b border-mimsa-green/15 px-5 py-1.5">
-        <span className="hud-label text-[9px] text-mimsa-greenDark/70">
+      <div className="flex items-center justify-between border-b-2 border-mimsa-green bg-mimsa-black px-5 py-2">
+        <span className="hud-label text-[9px] text-mimsa-green">
           MIMSA · Telemetría de línea
         </span>
-        <span className="flex items-center gap-1.5 hud-label text-[9px] text-mimsa-gray">
-          <span className="h-1.5 w-1.5 rounded-full bg-mimsa-green shadow-glow-sm animate-pulse" />
+        <span className="flex items-center gap-1.5 hud-label text-[9px] text-mimsa-green/80">
+          <span className="h-1.5 w-1.5 rounded-full bg-mimsa-green animate-pulse" />
           En vivo
         </span>
       </div>

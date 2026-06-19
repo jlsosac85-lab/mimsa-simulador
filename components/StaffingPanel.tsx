@@ -38,17 +38,17 @@ export function StaffingPanel({ line, stations, target, onApply, onResetBase }: 
 
   return (
     <div className="hud-card p-4">
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-mimsa-black">
+      <div className="hud-head mb-3">
+        <h3 className="text-sm font-semibold text-white">
           Plantilla sugerida para el objetivo — vs. lo asignado
         </h3>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-mimsa-gray">turno de {TURN} h</span>
+          <span className="text-[11px] text-mimsa-green/70">turno de {TURN} h</span>
           {onResetBase && (
             <button
               type="button"
               onClick={onResetBase}
-              className="hud-btn rounded-md px-2.5 py-1.5 text-[11px] font-medium"
+              className="rounded-md border border-mimsa-green/50 bg-white/5 px-2.5 py-1.5 text-[11px] font-medium text-white transition-colors hover:bg-white/15"
             >
               ↺ Restablecer base
             </button>
